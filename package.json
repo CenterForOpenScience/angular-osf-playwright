@@ -1,0 +1,34 @@
+{
+  "name": "cos-playwright",
+  "version": "0.1.0",
+  "description": "Playwright/TypeScript migration of the OSF Selenium test suite",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:chromium": "playwright test --project=chromium",
+    "test:firefox": "playwright test --project=firefox",
+    "test:edge": "playwright test --project=edge",
+    "test:all-browsers": "playwright test --project=chromium --project=firefox --project=edge",
+    "test:login": "playwright test tests/login.spec.ts",
+    "test:test": "cross-env TEST_ENV=test playwright test",
+    "test:test4": "cross-env TEST_ENV=test4 playwright test",
+    "test:stage1": "cross-env TEST_ENV=stage1 playwright test",
+    "test:stage2": "cross-env TEST_ENV=stage2 playwright test",
+    "test:stage3": "cross-env TEST_ENV=stage3 playwright test",
+    "test:stage4": "cross-env TEST_ENV=stage4 playwright test",
+    "test:prod": "cross-env TEST_ENV=prod playwright test",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@types/node": "^22.7.0",
+    "cross-env": "^7.0.3",
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^9.0.0",
+    "dotenv": "^16.4.0"
+  }
+}
