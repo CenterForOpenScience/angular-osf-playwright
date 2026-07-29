@@ -10,6 +10,7 @@
     "test:edge": "playwright test --project=edge",
     "test:all-browsers": "playwright test --project=chromium --project=firefox --project=edge",
     "test:login": "playwright test tests/login.spec.ts",
+    "test:user": "playwright test tests/user.spec.ts",
     "test:test": "cross-env TEST_ENV=test playwright test",
     "test:test4": "cross-env TEST_ENV=test4 playwright test",
     "test:stage1": "cross-env TEST_ENV=stage1 playwright test",
