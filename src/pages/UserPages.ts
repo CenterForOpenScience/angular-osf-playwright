@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, expect } from '@playwright/test';
 
 import * as settings from '../../config/settings';
 import { present } from '../utils';
@@ -103,7 +103,7 @@ export abstract class UserSettingsPage extends BasePage {
   }
 
   get identity(): Locator {
-    return this.page.locator('#profileSettings');
+    return this.page.locator('osf-settings-container');
   }
 
   get sideNavigation(): SettingsSideNavigation {
@@ -113,7 +113,7 @@ export abstract class UserSettingsPage extends BasePage {
 
 export class ProfileInformationPage extends UserSettingsPage {
   get identity(): Locator {
-    return this.page.locator('div[id="profileSettings"]');
+    return this.page.locator('osf-profile-settings');
   }
 
   get middleNameInput(): Locator {
@@ -142,12 +142,14 @@ export class ProfileInformationPage extends UserSettingsPage {
 
   get saveButton(): Locator {
     return this.page.locator(
-      "xpath=//button[contains(@class,'p-button')]//span[normalize-space(text())='Save']"
+      "xpath=//osf-name//button[contains(@class,'p-button')]//span[normalize-space(text())='Save']"
     );
   }
 
   get updateSuccess(): Locator {
-    return this.page.locator('.text-success');
+    return this.page.locator(
+      'xpath=//div[@role="alert" and contains(., "successfully updated")]'
+    );
   }
 }
 
@@ -175,11 +177,11 @@ export class ProfileSettingsPageEducationTab extends UserSettingsPage {
   }
 
   get startDateInputField(): Locator {
-    return this.page.locator("xpath=(//p-datepicker[@formcontrolname='startDate']//input)[2]");
+    return this.page.locator('osf-education-form p-datepicker[formcontrolname="startDate"] input');
   }
 
   get endDateInputField(): Locator {
-    return this.page.locator("xpath=(//p-datepicker[@formcontrolname='endDate']//input)[2]");
+    return this.page.locator('osf-education-form p-datepicker[formcontrolname="endDate"] input');
   }
 
   get addOneMoreButton(): Locator {
@@ -221,12 +223,23 @@ export class ProfileSettingsPageEducationTab extends UserSettingsPage {
   }
 
   /** Repeatedly clicks the Remove button (if present) until no education record is
-   * left, mirroring the Python `while True` / `TimeoutException` break loop. */
+   * left, mirroring the Python `while True` / `TimeoutException` break loop. Remove only
+   * updates local form state, so once everything is removed the form must be saved to
+   * persist the change. */
   async removeRecordIfExists(): Promise<void> {
+    let removedAny = false;
     for (;;) {
-      const visible = await present(this.removeEducationButton, 8000);
+      const visible = await present(this.removeEducationButton, 3000);
       if (!visible) break;
-      await this.removeEducationButton.click();
+      try {
+        await this.removeEducationButton.click({ timeout: 3000 });
+      } catch {
+        break;
+      }
+      removedAny = true;
+    }
+    if (removedAny) {
+      await this.saveEducationButton.click();
     }
   }
 }
@@ -379,11 +392,11 @@ export class ProfileSettingsPageEmploymentTab extends UserSettingsPage {
   }
 
   get startDateInputField(): Locator {
-    return this.page.locator('p-datepicker[formcontrolname="startDate"] input');
+    return this.page.locator('osf-employment-form p-datepicker[formcontrolname="startDate"] input');
   }
 
   get endDateInputField(): Locator {
-    return this.page.locator('p-datepicker[formcontrolname="endDate"] input');
+    return this.page.locator('osf-employment-form p-datepicker[formcontrolname="endDate"] input');
   }
 
   get removeEmploymentButton(): Locator {
@@ -427,7 +440,7 @@ export class AccountSettingsPage extends UserSettingsPage {
   }
 
   get identity(): Locator {
-    return this.page.locator('div[data-analytics-scope="Connected emails panel"]');
+    return this.page.locator('osf-connected-emails');
   }
 
   get loadingIndicator(): Locator {
@@ -455,7 +468,11 @@ export class AccountSettingsPage extends UserSettingsPage {
   }
 
   get firstAffInstDeleteButton(): Locator {
-    return this.page.locator('p-inputicon.remove-icon');
+    return this.page.locator('osf-affiliated-institutions p-inputicon.remove-icon');
+  }
+
+  get connectedEmailRemoveIconButton(): Locator {
+    return this.page.locator('osf-connected-emails p-inputicon.remove-icon');
   }
 
   get noAffiliationsMessage(): Locator {
@@ -555,7 +572,7 @@ export class AccountSettingsPage extends UserSettingsPage {
   get successfullyUpdatedShareMessage(): Locator {
     return this.page.locator(
       "xpath=//div[contains(@class,'p-toast-message')]" +
-        "//div[normalize-space()='Successfully updated SHARE indexing preference.']"
+        "//div[contains(@class,'font-medium') and normalize-space()='Successfully updated SHARE indexing preference.']"
     );
   }
 
@@ -607,7 +624,7 @@ export class ConfigureAddonsPage extends UserSettingsPage {
   }
 
   get identity(): Locator {
-    return this.page.locator('div[data-analytics-scope="User addons"]');
+    return this.page.locator('osf-settings-addons');
   }
 
   get loadingIndicator(): Locator {
@@ -623,11 +640,11 @@ export class ConfigureAddonsPage extends UserSettingsPage {
   }
 
   get searchInput(): Locator {
-    return this.page.locator('xpath=//input[@placeholder="Search add-ons"]');
+    return this.page.locator('input[placeholder="Search add-ons"]:visible');
   }
 
   get addonCardTitle(): Locator {
-    return this.page.locator('[data-test-addon-card-title]');
+    return this.page.locator('[data-test-addon-card-title]:visible');
   }
 
   get connectedTabEmpty(): Locator {
@@ -652,12 +669,19 @@ export class ConfigureAddonsPage extends UserSettingsPage {
 
   async selectFromAddonDropdown(dropdownOption: string): Promise<void> {
     const addonDropdown = this.page.locator('xpath=//div[@class="p-select-dropdown"]').nth(1);
-    await addonDropdown.click();
-    await this.page
-      .locator(
-        `xpath=//div[@class="p-select-list-container"]//li[text()=" ${dropdownOption} "]`
-      )
-      .click();
+    const selectedLabel = this.page.locator('xpath=//span[@class="p-select-label"]').nth(1);
+    // The option click occasionally doesn't register (selected label stays on the
+    // previous category) - verify it took effect and retry the whole click sequence
+    // if not, rather than trusting a single click blindly.
+    await expect(async () => {
+      await addonDropdown.click();
+      await this.page
+        .locator(
+          `xpath=//div[@class="p-select-list-container"]//li[text()=" ${dropdownOption} "]`
+        )
+        .click();
+      await expect(selectedLabel).toHaveText(new RegExp(dropdownOption), { timeout: 5000 });
+    }).toPass({ timeout: 20000 });
   }
 
   async clickOnButton(buttonName: string): Promise<void> {
@@ -685,7 +709,7 @@ export class ConfigureAddonsPage extends UserSettingsPage {
     for (let i = 0; i < count; i++) {
       const text = (await titles.nth(i).innerText()).trim().toLowerCase();
       if (text === provider) {
-        return this.page.locator('[data-test-addon-card-logo]').nth(i).getAttribute('src');
+        return this.page.locator('[data-test-addon-card-logo]:visible').nth(i).getAttribute('src');
       }
     }
     return null;
@@ -728,7 +752,7 @@ export class DeveloperAppsPage extends UserSettingsPage {
   }
 
   get identity(): Locator {
-    return this.page.locator('div[data-analytics-scope="Developer apps"]');
+    return this.page.locator('osf-developer-apps');
   }
 
   get createDevAppButton(): Locator {
@@ -740,7 +764,7 @@ export class DeveloperAppsPage extends UserSettingsPage {
   }
 
   get devAppCards(): Locator {
-    return this.page.locator('div[data-test-developer-app-card]');
+    return this.page.locator('p-card');
   }
 
   get deleteDevAppModal(): DeleteDevAppModal {
@@ -748,16 +772,14 @@ export class DeveloperAppsPage extends UserSettingsPage {
   }
 
   async getDevAppCardByAppName(appName: string): Promise<Locator | null> {
-    const cards = this.devAppCards;
-    const count = await cards.count();
-    for (let i = 0; i < count; i++) {
-      const card = cards.nth(i);
-      const nameEl = card.locator('[data-analytics-name="App name"]');
-      if ((await nameEl.innerText()).includes(appName)) {
-        return card;
-      }
-    }
-    return null;
+    // The card list can still be mid-render for a moment right after the loading
+    // indicator disappears, so this must poll for the matching card rather than
+    // take a one-shot snapshot of `devAppCards` (which can catch a stale, partial
+    // render and miss a just-created app).
+    const card = this.devAppCards.filter({
+      has: this.page.locator(`xpath=.//a[contains(@class,"app-link")]//h2[normalize-space()="${appName}"]`),
+    });
+    return (await present(card, settings.TIMEOUT_MS)) ? card : null;
   }
 }
 
@@ -767,7 +789,7 @@ export class CreateDeveloperAppPage extends UserSettingsPage {
   }
 
   get identity(): Locator {
-    return this.page.locator('[data-test-developer-app-name]');
+    return this.page.locator('osf-developer-app-add-edit-form');
   }
 
   get appNameInput(): Locator {
@@ -807,15 +829,15 @@ export class EditDeveloperAppPage extends UserSettingsPage {
   }
 
   get url(): string {
-    return `${settings.OSF_HOME}/settings/applications/${this.clientId}`;
+    return `${settings.OSF_HOME}/settings/developer-apps/${this.clientId}/details`;
   }
 
   get identity(): Locator {
-    return this.page.locator('[data-test-client-id]');
+    return this.page.locator('osf-developer-application-details');
   }
 
   get clientIdInput(): Locator {
-    return this.page.locator('input.p-inputtext.p-component.p-filled');
+    return this.page.locator('input[aria-labelledby="clientId"]');
   }
 
   get clientSecretInput(): Locator {
@@ -883,11 +905,13 @@ export class CreatePersonalAccessTokenPage extends UserSettingsPage {
   }
 
   get identity(): Locator {
-    return this.page.locator('[data-test-token-name]');
+    return this.page.locator('osf-token-add-edit-form');
   }
 
   get tokenNameInput(): Locator {
-    return this.page.locator('input.p-inputtext.p-component.ng-invalid');
+    return this.page.locator(
+      'xpath=//osf-text-input[label[normalize-space(text())="Token Name"]]//input'
+    );
   }
 
   /** Scope checkboxes, keyed the same way as the `id` attribute in the DOM (matches
@@ -915,11 +939,11 @@ export class EditPersonalAccessTokenPage extends UserSettingsPage {
   }
 
   get url(): string {
-    return `${settings.OSF_HOME}/settings/tokens/${this.tokenId}`;
+    return `${settings.OSF_HOME}/settings/tokens/${this.tokenId}/details`;
   }
 
   get identity(): Locator {
-    return this.page.locator('xpath=//h2[text()="Edit Token"]');
+    return this.page.locator('xpath=//h2[normalize-space()="Edit Token"]');
   }
 
   get loadingIndicator(): Locator {
@@ -927,7 +951,9 @@ export class EditPersonalAccessTokenPage extends UserSettingsPage {
   }
 
   get backToListOfTokensLink(): Locator {
-    return this.page.locator('xpath=//a[text()=" Back to list of personal tokens "]');
+    return this.page.locator(
+      'xpath=//a[normalize-space()="Back to list of personal tokens"]'
+    );
   }
 
   get tokenNameInput(): Locator {
@@ -965,7 +991,7 @@ export class PersonalAccessTokenPage extends UserSettingsPage {
   }
 
   get identity(): Locator {
-    return this.page.locator('osf-tokens.ng-star-inserted');
+    return this.page.locator('osf-tokens');
   }
 
   get loadingIndicator(): Locator {
@@ -977,7 +1003,7 @@ export class PersonalAccessTokenPage extends UserSettingsPage {
   }
 
   get patCards(): Locator {
-    return this.page.locator('div.p-card.p-component');
+    return this.page.locator('p-card');
   }
 
   get deletePatModal(): DeletePATModal {
@@ -985,15 +1011,12 @@ export class PersonalAccessTokenPage extends UserSettingsPage {
   }
 
   async getPatCardByName(patName: string): Promise<Locator | null> {
-    const cards = this.patCards;
-    const count = await cards.count();
-    for (let i = 0; i < count; i++) {
-      const card = cards.nth(i);
-      const tokenName = card.locator('a.token-link');
-      if ((await tokenName.innerText()).includes(patName)) {
-        return card;
-      }
-    }
-    return null;
+    // Poll for the matching card rather than taking a one-shot snapshot - the
+    // list can still be mid-render for a moment right after the loading
+    // indicator disappears (see getDevAppCardByAppName for the same issue).
+    const card = this.patCards.filter({
+      has: this.page.locator(`xpath=.//a[contains(@class,"token-link") and normalize-space()="${patName}"]`),
+    });
+    return (await present(card, settings.TIMEOUT_MS)) ? card : null;
   }
 }

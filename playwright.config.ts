@@ -17,12 +17,12 @@ export default defineConfig({
   workers: process.env.CI ? 2 : 4,
   reporter: [['list'], ['html', { open: 'never' }]],
   // Must stay comfortably above the largest individual wait below (navigationTimeout,
-  // 45s) - otherwise a single slow-but-legitimate navigation/assertion can exhaust the
-  // whole test budget before its own, more specific timeout gets a chance to fire,
-  // so failures surface as an opaque global timeout (plus a cascading
+  // LONG_TIMEOUT_MS) - otherwise a single slow-but-legitimate navigation/assertion can
+  // exhaust the whole test budget before its own, more specific timeout gets a chance to
+  // fire, so failures surface as an opaque global timeout (plus a cascading
   // "Target page, context or browser has been closed" from the mid-flight kill)
   // instead of a clear "element X never appeared" error.
-  timeout: settings.LONG_TIMEOUT_MS,
+  timeout: settings.VERY_LONG_TIMEOUT_MS,
   expect: {
     timeout: settings.TIMEOUT_MS,
   },

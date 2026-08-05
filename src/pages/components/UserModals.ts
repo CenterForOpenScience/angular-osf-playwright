@@ -1,7 +1,5 @@
 import { Page, Locator } from '@playwright/test';
 
-import { waitUntilPageReady } from '../../utils';
-
 /**
  * Port of `components/user.py`. In the Python framework these are `BaseElement`
  * subclasses instantiated via `ComponentLocator` on a parent page object, but nearly
@@ -42,15 +40,15 @@ export class DeleteDevAppModal {
   constructor(protected readonly page: Page) {}
 
   get appName(): Locator {
-    return this.page.locator('div.modal-header > h3 > strong');
+    return this.page.locator('.p-dialog-title');
   }
 
   get cancelButton(): Locator {
-    return this.page.locator('button[data-test-cancel-delete]');
+    return this.page.locator('button.p-confirmdialog-reject-button');
   }
 
   get deleteButton(): Locator {
-    return this.page.locator('button[data-test-confirm-delete]');
+    return this.page.locator('button.p-confirmdialog-accept-button');
   }
 }
 
@@ -58,9 +56,7 @@ export class DeletePATModal {
   constructor(protected readonly page: Page) {}
 
   get tokenName(): Locator {
-    return this.page.locator(
-      'div.ng-tns-c2196985156-2.p-dialog-header.ng-star-inserted > span'
-    );
+    return this.page.locator('.p-dialog-title');
   }
 
   get cancelButton(): Locator {
@@ -266,6 +262,9 @@ export class ConnectAddonModal {
   }
 
   async getRowCount(elementClass: string): Promise<number> {
+    // The Connect modal's table renders asynchronously after opening - counting
+    // immediately can race it and see 0 rows, so wait for the first row first.
+    await this.page.locator('xpath=//table/tbody/tr').first().waitFor({ state: 'visible' });
     return this.page.locator(`xpath=//tr[@class="${elementClass}"]`).count();
   }
 
@@ -276,6 +275,7 @@ export class ConnectAddonModal {
     expectedConditions: AddonCondition[]
   ): Promise<void> {
     const rows = this.page.locator('xpath=//table/tbody/tr');
+    await rows.first().waitFor({ state: 'visible' });
     const rowCount = await rows.count();
     const providerRows: Locator[] = [];
     for (let i = 0; i < rowCount; i++) {
@@ -334,7 +334,6 @@ export class ConnectMendeleyModal {
   async connectToMendeley(email: string, password: string): Promise<void> {
     await this.emailInput.fill(email);
     await this.continueButton.click();
-    await waitUntilPageReady(this.page);
     await this.passwordInput.fill(password);
     await this.signInButton.click();
   }
@@ -362,7 +361,6 @@ export class ConnectZoteroModal {
   async connectToZotero(username: string, password: string): Promise<void> {
     await this.verifyHuman.waitFor({ state: 'visible', timeout: 30000 });
     await this.usernameInput.fill(username);
-    await waitUntilPageReady(this.page);
     await this.passwordInput.fill(password);
     await this.loginButton.waitFor({ state: 'visible', timeout: 30000 });
     await this.loginButton.click();

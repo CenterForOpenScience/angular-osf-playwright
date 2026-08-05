@@ -3,28 +3,6 @@ import { Page, Locator } from '@playwright/test';
 import * as settings from '../../config/settings';
 
 /**
- * Port of `wait_until_page_ready` from utils.py. Waits for the document to finish
- * loading and for the PrimeNG loading indicators OSF uses to disappear, if present.
- */
-export async function waitUntilPageReady(page: Page, timeoutMs = 60000): Promise<void> {
-  await page.waitForFunction(() => document.readyState === 'complete', undefined, {
-    timeout: timeoutMs,
-  });
-
-  await page
-    .locator('p-progress-spinner')
-    .first()
-    .waitFor({ state: 'hidden', timeout: timeoutMs })
-    .catch(() => undefined);
-
-  await page
-    .locator('p-skeleton.p-skeleton')
-    .first()
-    .waitFor({ state: 'hidden', timeout: timeoutMs })
-    .catch(() => undefined);
-}
-
-/**
  * Port of `base/locators.py`'s `Locator.present()`. Waits for the element to become
  * visible; returns `false` (rather than throwing) on timeout.
  */
@@ -67,6 +45,26 @@ export async function hereThenGone(
     throw new Error('Element is not absent.');
   }
   return true;
+}
+
+/**
+ * Port of `wait_until_page_ready` from utils.py. Waits for the document to finish
+ * loading, then for any PrimeNG progress spinner / skeleton loaders to disappear -
+ * both waits are best-effort (matches the Python version swallowing
+ * `TimeoutException`) since the elements may never have been present at all.
+ */
+export async function waitUntilPageReady(page: Page, timeout = 60000): Promise<void> {
+  await page.waitForFunction(() => document.readyState === 'complete', undefined, { timeout });
+  await page
+    .locator('p-progress-spinner')
+    .first()
+    .waitFor({ state: 'hidden', timeout })
+    .catch(() => undefined);
+  await page
+    .locator('p-skeleton.p-skeleton')
+    .first()
+    .waitFor({ state: 'hidden', timeout })
+    .catch(() => undefined);
 }
 
 /** Port of `wait_until_toast_message_gone` from utils.py. */
