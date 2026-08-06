@@ -62,7 +62,7 @@ export async function createProject(
   const { title = 'osf selenium test', description, public: isPublic } = options;
   const tags = options.tags ?? ['qatest', process.env.PYTEST_CURRENT_TEST ?? 'playwright'];
 
-  const attributes: Record<string, unknown> = { title, tags };
+  const attributes: Record<string, unknown> = { title, tags, category: '' };
   if (description !== undefined) attributes.description = description;
   if (isPublic !== undefined) attributes.public = isPublic;
 

@@ -1,7 +1,6 @@
 import { Page, Locator } from '@playwright/test';
 
 import * as settings from '../../config/settings';
-import { waitUntilPageReady } from '../utils';
 import { BasePage } from './BasePage';
 
 /** Port of `pages/login.py`. */
@@ -356,13 +355,10 @@ async function performLogin(
   password: string
 ): Promise<void> {
   await page.goto(`${settings.OSF_HOME}/login`);
-  await waitUntilPageReady(page);
 
   const loginPage = new LoginPage(page);
   await loginPage.submitLoginShort(user, password);
   await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 45000 });
-
-  await waitUntilPageReady(page);
 }
 
 export async function login(
