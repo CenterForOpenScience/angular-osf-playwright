@@ -96,7 +96,37 @@ src/
     index.ts           # port of the utils.py helpers the above depend on
 tests/
   login.spec.ts         # port of tests/test_login.py
+  user.spec.ts          # port of tests/test_user.py
+  search.spec.ts        # port of tests/test_search.py
 ```
+
+## Migration status
+
+Sections mirror the checklist in the Selenium repo's `PLAYWRIGHT_MIGRATION_RULES.md`
+(`C:\PyCharmProjects\OSF\osf-selenium-tests-develop`). When a section lands here,
+tick it in **both** files.
+
+| # | Section | Source (Selenium) | Spec here | Status |
+|---|---------|-------------------|-----------|--------|
+| 1 | Login | `tests/test_login.py` | `tests/login.spec.ts` | [x] Migrated |
+| 2 | User settings | `tests/test_user.py` | `tests/user.spec.ts` | [x] Migrated |
+| 3 | Profile | `tests/test_profile.py` | — | [ ] Not migrated |
+| 4 | Search | `tests/test_search.py` | `tests/search.spec.ts` | [x] Migrated |
+| 5 | Navbar | `tests/test_navbar.py` | — | [ ] Not migrated |
+| 6 | Dashboard | `tests/test_dashboard.py` | — | [ ] Not migrated |
+| 7 | Collections | `tests/test_collections.py` | — | [ ] Not migrated |
+| 8 | Registration sidebar | `tests/test_registration_sidebar.py` | — | [ ] Not migrated |
+| 9 | Preprints | `tests/test_preprints.py` | — | [ ] Not migrated |
+| 10 | Metadata | `tests/test_metadata.py` | — | [ ] Not migrated |
+| 11 | Institutions | `tests/test_institutions.py` | — | [ ] Not migrated |
+| 12 | My projects | `tests/test_my_projects.py` | — | [ ] Not migrated |
+| 13 | My registrations | `tests/test_my_registrations.py` | — | [ ] Not migrated |
+| 14 | My preprints | `tests/test_my_preprints.py` | — | [ ] Not migrated |
+| 15 | Registration moderation | `tests/test_registration_moderation.py` | — | [ ] Not migrated |
+| 16 | Registration user permissions | `tests/test_registration_user_permissions.py` | — | [ ] Not migrated |
+| 17 | Registries | `tests/test_registries.py` | — | [ ] Not migrated |
+
+Progress: **3 / 17** sections migrated.
 
 ## Notable differences from the Python suite
 

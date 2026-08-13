@@ -473,9 +473,9 @@ test.describe('User Account Settings', () => {
     const settingsPage = new AccountSettingsPage(page);
     await settingsPage.goto();
 
-    const noAffiliationsMessage = page.locator(
-      'xpath=//osf-affiliated-institutions//p[normalize-space(text())="You have no affiliations."]'
-    );
+    const noAffiliationsMessage = page
+      .locator('osf-affiliated-institutions')
+      .getByText('You have no affiliations.', { exact: true });
     if (await present(noAffiliationsMessage, 5000)) {
       test.skip(true, 'User has no affiliated institutions - skipping test');
     }
@@ -503,7 +503,7 @@ test.describe('User Account Settings', () => {
 
     await expect(settingsPage.updatePasswordButtonInactive).toBeVisible();
     await expect(
-      page.locator("xpath=//small[contains(text(), 'Your password needs to be at least 8 characters long')]")
+      page.getByText('Your password needs to be at least 8 characters long')
     ).toBeVisible();
 
     await page
@@ -531,7 +531,7 @@ test.describe('User Account Settings', () => {
 
     await expect(settingsPage.configure2faTitle).toBeVisible();
 
-    const cancelButton = page.locator("xpath=//button[.//span[normalize-space(text())='Cancel']]");
+    const cancelButton = page.getByRole('button', { name: 'Cancel', exact: true });
     if (await present(cancelButton, 5000)) {
       await cancelButton.click();
     }
@@ -557,12 +557,13 @@ test.describe('User Account Settings', () => {
     await settingsPage.verify();
 
 
-    const undoButtonDeactivation = page.locator(
-      "xpath=//button[.//span[normalize-space(text())='Undo deactivation request']]"
-    );
+    const undoButtonDeactivation = page.getByRole('button', {
+      name: 'Undo deactivation request',
+      exact: true,
+    });
     if (await present(undoButtonDeactivation, 3000)) {
       await undoButtonDeactivation.click();
-      const undoButtonConfirm = page.locator("xpath=//button[.//span[normalize-space()='Undo']]");
+      const undoButtonConfirm = page.getByRole('button', { name: 'Undo', exact: true });
       await undoButtonConfirm.waitFor({ state: 'visible', timeout: 3000 });
       await undoButtonConfirm.click();
     }
@@ -654,9 +655,9 @@ test.describe('User Developer Apps', () => {
 
     let clientId = '';
     try {
-      const appLink = page.locator(
-        `xpath=//a[contains(@class,"app-link")]//h2[normalize-space()="${appName}"]`
-      );
+      const appLink = page
+        .locator('a.app-link')
+        .filter({ has: page.getByRole('heading', { name: appName, exact: true }) });
       await waitForOverlayToDisappear(page);
       await appLink.click();
 
@@ -738,7 +739,7 @@ test.describe('User Developer Apps', () => {
 
       devAppCard = await devAppsPageAgain.getDevAppCardByAppName(appName);
       if (!devAppCard) throw new Error('Dev app card unexpectedly missing');
-      let deleteButton = devAppCard.locator('xpath=.//button[.//span[normalize-space()="Delete"]]');
+      let deleteButton = devAppCard.getByRole('button', { name: 'Delete', exact: true });
       await deleteButton.click();
       let deleteModal = devAppsPageAgain.deleteDevAppModal;
       await expect(deleteModal.appName).toContainText(appName);
@@ -748,7 +749,7 @@ test.describe('User Developer Apps', () => {
       await devAppsPageAgain.verify();
       devAppCard = await devAppsPageAgain.getDevAppCardByAppName(appName);
       if (!devAppCard) throw new Error('Dev app card unexpectedly missing after cancel');
-      deleteButton = devAppCard.locator('xpath=.//button[.//span[normalize-space()="Delete"]]');
+      deleteButton = devAppCard.getByRole('button', { name: 'Delete', exact: true });
       await deleteButton.click();
       deleteModal = devAppsPageAgain.deleteDevAppModal;
       await expect(deleteModal.appName).toContainText(appName);
@@ -788,7 +789,7 @@ test.describe('User Developer Apps', () => {
       await expect(page.locator('osf-settings-container')).toBeVisible();
       await devAppsPage.verify();
 
-      const appLink = page.locator(`xpath=//h2[text()="${appName}"]`);
+      const appLink = page.getByRole('heading', { name: appName, exact: true });
       await appLink.click();
 
       let editPage = new EditDeveloperAppPage(page);
@@ -897,9 +898,7 @@ test.describe('User Personal Access Tokens', () => {
       }
       await confirmModal.closeButton.click();
 
-      const patLink = page.locator(
-        `xpath=//a[@class="token-link" and normalize-space(text())="${tokenName}"]`
-      );
+      const patLink = page.locator('a.token-link').getByText(tokenName, { exact: true });
       await patLink.waitFor({ state: 'visible', timeout: 15000 });
       await waitForOverlayToDisappear(page);
       await patLink.click();
@@ -1097,9 +1096,7 @@ test.describe('User Personal Access Tokens', () => {
       await patPage.goto();
       await patPage.verify();
 
-      const patCardLocator = page.locator(
-        `xpath=//a[@class="token-link" and normalize-space(text())="${tokenName}"]`
-      );
+      const patCardLocator = page.locator('a.token-link').getByText(tokenName, { exact: true });
       await patCardLocator.click();
 
       let editPage = new EditPersonalAccessTokenPage(page);
@@ -1121,9 +1118,9 @@ test.describe('User Personal Access Tokens', () => {
       await editPage.saveButton.click();
 
       await patPage.verify();
-      const newPatCardLocator = page.locator(
-        `xpath=//a[@class="token-link" and normalize-space(text())="${newTokenName}"]`
-      );
+      const newPatCardLocator = page
+        .locator('a.token-link')
+        .getByText(newTokenName, { exact: true });
       await expect(newPatCardLocator).toBeVisible();
 
       await newPatCardLocator.click();
@@ -1186,7 +1183,7 @@ test.describe('User Addons', () => {
       await addonsPage.goto();
       await addonsPage.clickOnTab(addonsPage.allAddonsTab);
       await addonsPage.selectFromAddonDropdown(addonType);
-      await page.locator('xpath=//h3[@class="text-center"]').first().waitFor({ state: 'visible', timeout: 20000 });
+      await page.locator('h3.text-center').first().waitFor({ state: 'visible', timeout: 20000 });
 
       const actualAddonsList = (await addonsPage.getAddonsList()).sort();
       const expectedAddonsList = expectedAddons[addonType].map((a) => a.toLowerCase()).sort();
@@ -1205,7 +1202,7 @@ test.describe('User Addons', () => {
       } else {
         await addonsPage.selectFromAddonDropdown('Citation Manager');
       }
-      await page.locator('xpath=//h3[@class="text-center"]').first().waitFor({ state: 'visible', timeout: 20000 });
+      await page.locator('h3.text-center').first().waitFor({ state: 'visible', timeout: 20000 });
 
       const expectedLogo = `${provider}.svg`;
       const actualLogoSrc = await addonsPage.getAddonProviderLogo(provider);
@@ -1570,9 +1567,7 @@ async function checkConfirmationMessage(
   page: Page,
   message = 'Notification preferences successfully updated.'
 ): Promise<void> {
-  const banner = page.locator(
-    `xpath=//div[contains(@class,'font-medium') and normalize-space()='${message}']`
-  );
+  const banner = page.locator(`div[class*="font-medium"]:text-is("${message}")`);
   await expect(banner).toBeVisible({ timeout: 10000 });
 }
 
@@ -1592,19 +1587,19 @@ async function toggleEmailPreferenceAndConfirm(
 }
 
 async function checkAddingNotification(page: Page, dropdownIndex: number): Promise<void> {
-  const dropdown = page.locator("xpath=//p-select//span[@role='combobox']").nth(dropdownIndex);
+  const dropdown = page.locator('p-select span[role="combobox"]').nth(dropdownIndex);
   await dropdown.click();
-  await page.locator("xpath=//li[@role='option' and normalize-space()='Never']").click();
+  await page.getByRole('option', { name: 'Never', exact: true }).click();
   await checkConfirmationMessage(page);
   await closeConfirmationMessage(page);
 
   await dropdown.click();
-  await page.locator("xpath=//li[@role='option' and normalize-space()='Daily']").click();
+  await page.getByRole('option', { name: 'Daily', exact: true }).click();
   await checkConfirmationMessage(page);
   await closeConfirmationMessage(page);
 
   await dropdown.click();
-  await page.locator("xpath=//li[@role='option' and normalize-space()='Instant']").click();
+  await page.getByRole('option', { name: 'Instant', exact: true }).click();
   await checkConfirmationMessage(page);
 }
 

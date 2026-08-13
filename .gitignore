@@ -147,5 +147,8 @@ playwright-report/
 playwright/.cache/
 test-results/
 
+# Scratch debug spec (see CLAUDE.md)
+tests/_debug_inspect.spec.ts
+
 # Claude Code project instructions
 CLAUDE.md

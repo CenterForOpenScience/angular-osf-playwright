@@ -9,7 +9,7 @@ export class LandingPage extends BasePage {
   }
 
   get identity(): Locator {
-    return this.page.locator('section.home-container.flex.flex-column');
+    return this.page.locator('osf-home');
   }
 
   get getStartedButton(): Locator {

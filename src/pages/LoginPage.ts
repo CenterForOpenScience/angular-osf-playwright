@@ -46,9 +46,7 @@ export class LoginPage extends BasePage {
   }
 
   get osfHomeLink(): Locator {
-    return this.page.locator(
-      'xpath=(//a[@class="navbar-link" and normalize-space(.)="Home"])[2]'
-    );
+    return this.page.getByRole('link', { name: 'Home' });
   }
 
   get signUpButton(): Locator {
@@ -81,12 +79,6 @@ export class LoginPage extends BasePage {
 
   get signInButton(): Locator {
     return this.page.locator('#sign-in_header');
-  }
-
-  get acceptCookiesButton(): Locator {
-    return this.page.locator(
-      'xpath=//button[.//span[normalize-space(text())="Accept cookies"]]'
-    );
   }
 
   async selectInstitutionLogin(): Promise<void> {
@@ -189,9 +181,7 @@ export class InstitutionalLoginPage extends BasePage {
   }
 
   get osfHomeLink(): Locator {
-    return this.page.locator(
-      'xpath=(//a[@class="navbar-link" and normalize-space(.)="Home"])[2]'
-    );
+    return this.page.getByRole('link', { name: 'Home' });
   }
 
   get signUpButton(): Locator {
