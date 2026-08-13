@@ -44,4 +44,20 @@ export abstract class BasePage {
     await instance.verify(timeout);
     return instance;
   }
+
+
+  async getDates(labelText: string): Promise<Date[]> {
+    const texts = await this.page
+      .locator(`xpath=//p[contains(text(),'${labelText}:')]`)
+      .allInnerTexts();
+    return texts.map((text) => new Date(text.replace(`${labelText}: `, '').trim()));
+  }
+
+  /** Port of `pages/base.py`'s `BasePage.assert_sorting`. */
+  assertSorting(dates: Date[], order: 'ascending' | 'descending' = 'ascending'): void {
+    const times = dates.map((date) => date.getTime());
+    const sortedAscending = [...times].sort((a, b) => a - b);
+    const expected = order === 'ascending' ? sortedAscending : [...sortedAscending].reverse();
+    expect(times).toEqual(expected);
+  }
 }

@@ -116,7 +116,7 @@ export class UndoDeactivationRequestModal {
   }
 
   get undoRequestButton(): Locator {
-    return this.page.locator("xpath=//button[span[text()='Undo']]");
+    return this.page.getByRole('button', { name: 'Undo', exact: true });
   }
 }
 
@@ -124,7 +124,7 @@ export class Configure2FAModal {
   constructor(protected readonly page: Page) {}
 
   get cancelButton(): Locator {
-    return this.page.locator("xpath=//button[.//span[text()='Cancel']]");
+    return this.page.getByRole('button', { name: 'Cancel', exact: true });
   }
 
   get configureButton(): Locator {
@@ -136,19 +136,19 @@ export class ConfirmEmailSentModal {
   constructor(protected readonly page: Page) {}
 
   get cancelButton(): Locator {
-    return this.page.locator("xpath=//button[.//span[text()='Cancel']]");
+    return this.page.getByRole('button', { name: 'Cancel', exact: true });
   }
 
   get alternativeEmailCloseButton(): Locator {
-    return this.page.locator("xpath=//div[@role='dialog']//button[@aria-label='Close']");
+    return this.page.locator('.p-dialog-close-button');
   }
 
   get addButton(): Locator {
-    return this.page.locator("xpath=//button[.//span[text()='Add']]");
+    return this.page.getByRole('button', { name: 'Add', exact: true });
   }
 
   get closeButton(): Locator {
-    return this.page.locator("xpath=//button[.//span[text()='Close']]");
+    return this.page.getByRole('button', { name: 'Close', exact: true });
   }
 
   get closeModalButton(): Locator {
@@ -159,15 +159,13 @@ export class ConfirmEmailSentModal {
 export class ConfirmRemoveEmailModal {
   constructor(protected readonly page: Page) {}
 
-  /** Python's Locator used `By.XPATH` with a CSS-shaped selector string (a bug, so it
-   * never actually matched anything there) - ported here as the CSS selector it was
-   * clearly meant to be. */
+
   get deletedEmail(): Locator {
     return this.page.locator('[data-test-delete-modal-body] > p > strong');
   }
 
   get deleteButton(): Locator {
-    return this.page.locator("xpath=//button[span[text()='Delete']]");
+    return this.page.getByRole('button', { name: 'Delete', exact: true });
   }
 }
 
@@ -204,18 +202,14 @@ export class DisableAddonModal {
   }
 
   async clickOnDisableButton(): Promise<void> {
-    const disableButtons = this.page.locator(
-      'xpath=//button[.//span[normalize-space()="Disable"]]'
-    );
+    const disableButtons = this.page.getByRole('button', { name: 'Disable', exact: true });
     const connectedAddonsList = await this.getAddonsList();
     const buttonIndex = connectedAddonsList.length;
     await disableButtons.nth(buttonIndex).click();
   }
 
   async clickOnButton(buttonName: string): Promise<void> {
-    await this.page
-      .locator(`xpath=//button[.//span[normalize-space()='${buttonName}']]`)
-      .click();
+    await this.page.getByRole('button', { name: buttonName, exact: true }).click();
   }
 }
 
@@ -223,9 +217,7 @@ export class ReconnectAddonModal {
   constructor(protected readonly page: Page) {}
 
   async clickOnButton(buttonName: string): Promise<void> {
-    await this.page
-      .locator(`xpath=//button[.//span[normalize-space()='${buttonName}']]`)
-      .click();
+    await this.page.getByRole('button', { name: buttonName, exact: true }).click();
   }
 }
 
@@ -238,14 +230,8 @@ export interface AddonCondition {
 export class ConnectAddonModal {
   constructor(protected readonly page: Page) {}
 
-  get providerName(): Locator {
-    return this.page.locator(
-      'xpath=//input[@class="ng-untouched ng-pristine ng-valid p-component p-filled p-inputtext"]'
-    );
-  }
-
   get dataverseApiTokenInput(): Locator {
-    return this.page.locator('xpath=//input[@placeholder="API Token"]');
+    return this.page.getByPlaceholder('API Token');
   }
 
   async dataverseAccountInputs(accountName: string, url: string, apiToken: string): Promise<void> {
@@ -256,16 +242,14 @@ export class ConnectAddonModal {
   }
 
   async clickOnButton(buttonName: string): Promise<void> {
-    await this.page
-      .locator(`xpath=//button[.//span[normalize-space()='${buttonName}']]`)
-      .click();
+    await this.page.getByRole('button', { name: buttonName, exact: true }).click();
   }
 
   async getRowCount(elementClass: string): Promise<number> {
     // The Connect modal's table renders asynchronously after opening - counting
     // immediately can race it and see 0 rows, so wait for the first row first.
-    await this.page.locator('xpath=//table/tbody/tr').first().waitFor({ state: 'visible' });
-    return this.page.locator(`xpath=//tr[@class="${elementClass}"]`).count();
+    await this.page.locator('table tbody tr').first().waitFor({ state: 'visible' });
+    return this.page.locator(`tr.${elementClass}`).count();
   }
 
   /** Verify each expected {Function, status, class} condition appears in the addon's
@@ -274,7 +258,7 @@ export class ConnectAddonModal {
     provider: string,
     expectedConditions: AddonCondition[]
   ): Promise<void> {
-    const rows = this.page.locator('xpath=//table/tbody/tr');
+    const rows = this.page.locator('table tbody tr');
     await rows.first().waitFor({ state: 'visible' });
     const rowCount = await rows.count();
     const providerRows: Locator[] = [];

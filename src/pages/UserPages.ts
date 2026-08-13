@@ -45,19 +45,15 @@ export class UserProfilePage extends BasePage {
   }
 
   get projectsTab(): Locator {
-    return this.page.locator('xpath=//nav//button[contains(normalize-space(), "Projects")]');
+    return this.page.getByRole('navigation').getByRole('button', { name: 'Projects' });
   }
 
   get registrationsTab(): Locator {
-    return this.page.locator(
-      'xpath=//nav//button[contains(normalize-space(), "Registrations")]'
-    );
+    return this.page.getByRole('navigation').getByRole('button', { name: 'Registrations' });
   }
 
   get preprintsTab(): Locator {
-    return this.page.locator(
-      'xpath=//nav//button[contains(normalize-space(), "Preprints")]'
-    );
+    return this.page.getByRole('navigation').getByRole('button', { name: 'Preprints' });
   }
 
   get resultCount(): Locator {
@@ -117,39 +113,27 @@ export class ProfileInformationPage extends UserSettingsPage {
   }
 
   get middleNameInput(): Locator {
-    return this.page.locator(
-      "xpath=//osf-text-input[label[normalize-space(.)='Middle Name(s) (Optional)']]//input"
-    );
+    return this.page.getByLabel('Middle Name(s) (Optional)', { exact: true });
   }
 
   get familyNameInput(): Locator {
-    return this.page.locator(
-      "xpath=//label[normalize-space()='Family Name']/following::input[1]"
-    );
+    return this.page.getByLabel('Family Name', { exact: true });
   }
 
   get givenNameInput(): Locator {
-    return this.page.locator(
-      "xpath=//label[normalize-space()='Given Name']/following::input[1]"
-    );
+    return this.page.getByLabel('Given Name', { exact: true });
   }
 
   get citationBlocks(): Locator {
-    return this.page.locator(
-      "xpath=//h2[normalize-space()='Citation Preview']/following::div[contains(@class,'column-gap-4')]"
-    );
+    return this.page.locator('div.column-gap-4');
   }
 
   get saveButton(): Locator {
-    return this.page.locator(
-      "xpath=//osf-name//button[contains(@class,'p-button')]//span[normalize-space(text())='Save']"
-    );
+    return this.page.locator('osf-name').getByRole('button', { name: 'Save', exact: true });
   }
 
   get updateSuccess(): Locator {
-    return this.page.locator(
-      'xpath=//div[@role="alert" and contains(., "successfully updated")]'
-    );
+    return this.page.getByRole('alert').filter({ hasText: 'successfully updated' });
   }
 }
 
@@ -159,21 +143,21 @@ export class ProfileSettingsPageEducationTab extends UserSettingsPage {
   }
 
   get institutionInput(): Locator {
-    return this.page.locator(
-      'xpath=//label[normalize-space()="Institution"]/following-sibling::input'
-    );
+    return this.page.getByLabel('Institution', { exact: true });
   }
 
+  // The app renders every profile tab's form in the DOM simultaneously (not just the
+  // active tab), and the employment tab's first-record department field shares the
+  // same `id="department-0"` as this one - `getByLabel` resolves `for="department-0"`
+  // via the browser's first-match-in-document semantics, which lands on the hidden
+  // employment field instead. Scope by the education form's custom element to avoid
+  // the collision, matching the date-field locators below.
   get departamentInputField(): Locator {
-    return this.page.locator(
-      'xpath=//div/label[text()=" Department "]/following-sibling::input'
-    );
+    return this.page.locator('osf-education-form input[formcontrolname="department"]');
   }
 
   get degreeInputField(): Locator {
-    return this.page.locator(
-      'xpath=//div/label[text()=" Degree "]/following-sibling::input'
-    );
+    return this.page.getByLabel('Degree', { exact: true });
   }
 
   get startDateInputField(): Locator {
@@ -185,33 +169,27 @@ export class ProfileSettingsPageEducationTab extends UserSettingsPage {
   }
 
   get addOneMoreButton(): Locator {
-    return this.page.locator('xpath=//button[.//span[normalize-space()="Add One More"]]');
+    return this.page.getByRole('button', { name: 'Add One More', exact: true });
   }
 
   get removeEducationButton(): Locator {
-    return this.page.locator('xpath=(//button[.//span[normalize-space()="Remove"]])[2]');
+    return this.page.getByRole('button', { name: 'Remove', exact: true }).first();
   }
 
   get saveEducationButton(): Locator {
-    return this.page.locator('xpath=(//button[.//span[normalize-space()="Save"]])[4]');
+    return this.page.getByRole('button', { name: 'Save', exact: true });
   }
 
   get discardChangesButton(): Locator {
-    return this.page.locator(
-      'xpath=(//button[.//span[normalize-space()="Discard Changes"]])[4]'
-    );
+    return this.page.getByRole('button', { name: 'Discard Changes', exact: true });
   }
 
   get discardChangesConfirmationButton(): Locator {
-    return this.page.locator(
-      'xpath=(//button[.//span[normalize-space()="Discard Changes"]])[5]'
-    );
+    return this.page.locator('.p-confirmdialog-accept-button');
   }
 
   get educationSuccessfullyUpdatedPopUpMessage(): Locator {
-    return this.page.locator(
-      'xpath=//div[@role="alert" and contains(., "Education successfully updated.")]'
-    );
+    return this.page.getByRole('alert').filter({ hasText: 'Education successfully updated.' });
   }
 
   get educationCard(): Locator {
@@ -219,7 +197,7 @@ export class ProfileSettingsPageEducationTab extends UserSettingsPage {
   }
 
   get errorMessages(): Locator {
-    return this.page.locator('xpath=//span[normalize-space()="The field is required."]');
+    return this.page.getByText('The field is required.', { exact: true });
   }
 
   /** Repeatedly clicks the Remove button (if present) until no education record is
@@ -249,12 +227,8 @@ export class SettingsNotificationsPage extends UserSettingsPage {
     return `${settings.OSF_HOME}/settings/notifications`;
   }
 
-  get notificationsSection(): Locator {
-    return this.page.locator('xpath=//h2[text()="Configure Notification Preferences"]');
-  }
-
   get emailPreferencesHeader(): Locator {
-    return this.page.locator("xpath=//h2[normalize-space()='Configure Email Preferences']");
+    return this.page.getByRole('heading', { name: 'Configure Email Preferences', exact: true });
   }
 
   get emailGeneralCheckbox(): Locator {
@@ -262,11 +236,11 @@ export class SettingsNotificationsPage extends UserSettingsPage {
   }
 
   get emailGeneralLabel(): Locator {
-    return this.page.locator('xpath=//label[@for="v1"]');
+    return this.page.locator('label[for="v1"]');
   }
 
   get emailGeneralDescription(): Locator {
-    return this.page.locator('xpath=//label[@for="v1"]/parent::div/p');
+    return this.page.locator('div:has(> label[for="v1"]) > p');
   }
 
   get emailHelpCheckbox(): Locator {
@@ -274,18 +248,17 @@ export class SettingsNotificationsPage extends UserSettingsPage {
   }
 
   get emailHelpLabel(): Locator {
-    return this.page.locator('xpath=//label[@for="v2"]');
+    return this.page.locator('label[for="v2"]');
   }
 
   get emailHelpDescription(): Locator {
-    return this.page.locator('xpath=//label[@for="v2"]/parent::div/p');
+    return this.page.locator('div:has(> label[for="v2"]) > p');
   }
 
   get emailPreferencesSaveButton(): Locator {
-    return this.page.locator(
-      'xpath=//h2[normalize-space()="Configure Email Preferences"]' +
-        '/parent::section//button[.//span[normalize-space()="Save"]]'
-    );
+    return this.page
+      .locator('section:has(> h2:text-is("Configure Email Preferences"))')
+      .getByRole('button', { name: 'Save', exact: true });
   }
 }
 
@@ -350,13 +323,11 @@ export class ProfileSettingsPageSocialTab extends UserSettingsPage {
   }
 
   get saveButton(): Locator {
-    return this.page.locator("xpath=(//button[.//span[normalize-space()='Save']])[2]");
+    return this.page.getByRole('button', { name: 'Save', exact: true });
   }
 
   get successfullyUpdatedMessage(): Locator {
-    return this.page.locator(
-      "xpath=(//div[@role='alert']//div[contains(text(),'Social successfully updated')])[1]"
-    );
+    return this.page.getByRole('alert').filter({ hasText: 'Social successfully updated' }).first();
   }
 }
 
@@ -366,29 +337,23 @@ export class ProfileSettingsPageEmploymentTab extends UserSettingsPage {
   }
 
   get addPositionButton(): Locator {
-    return this.page.locator('xpath=//button[.//span[normalize-space()="Add Position"]]');
+    return this.page.getByRole('button', { name: 'Add Position', exact: true });
   }
 
   get jobTitleInput(): Locator {
-    return this.page.locator(
-      'xpath=//label[normalize-space()="Job Title"]/following-sibling::input'
-    );
+    return this.page.getByLabel('Job Title', { exact: true });
   }
 
   get institutionEmployerInput(): Locator {
-    return this.page.locator(
-      'xpath=//label[normalize-space()="Institution / Employer"]/following-sibling::input'
-    );
+    return this.page.getByLabel('Institution / Employer', { exact: true });
   }
 
   get saveEmploymentButton(): Locator {
-    return this.page.locator('xpath=(//button[.//span[normalize-space()="Save"]])[3]');
+    return this.page.getByRole('button', { name: 'Save', exact: true });
   }
 
   get employmentSuccessfullyUpdatedPopUpMessage(): Locator {
-    return this.page.locator(
-      'xpath=//div[@role="alert" and contains(., "Employment successfully updated.")]'
-    );
+    return this.page.getByRole('alert').filter({ hasText: 'Employment successfully updated.' });
   }
 
   get startDateInputField(): Locator {
@@ -400,19 +365,15 @@ export class ProfileSettingsPageEmploymentTab extends UserSettingsPage {
   }
 
   get removeEmploymentButton(): Locator {
-    return this.page.locator('xpath=(//button[.//span[normalize-space()="Remove"]])[1]');
+    return this.page.getByRole('button', { name: 'Remove', exact: true }).first();
   }
 
   get discardChangesButton(): Locator {
-    return this.page.locator(
-      'xpath=(//button[.//span[normalize-space()="Discard Changes"]])[3]'
-    );
+    return this.page.getByRole('button', { name: 'Discard Changes', exact: true });
   }
 
   get discardChangesConfirmationButton(): Locator {
-    return this.page.locator(
-      'xpath=(//button[.//span[normalize-space()="Discard Changes"]])[5]'
-    );
+    return this.page.locator('.p-confirmdialog-accept-button');
   }
 
   get educationCard(): Locator {
@@ -420,7 +381,7 @@ export class ProfileSettingsPageEmploymentTab extends UserSettingsPage {
   }
 
   get errorMessages(): Locator {
-    return this.page.locator('xpath=//span[normalize-space()="The field is required."]');
+    return this.page.getByText('The field is required.', { exact: true });
   }
 
   /** Repeatedly clicks the Remove button (if present) until no employment record is
@@ -454,7 +415,7 @@ export class AccountSettingsPage extends UserSettingsPage {
   }
 
   get addEmailButton(): Locator {
-    return this.page.locator("xpath=//button[.//span[text()='Add Email']]");
+    return this.page.getByRole('button', { name: 'Add Email', exact: true });
   }
 
   get storageLocationListbox(): Locator {
@@ -484,15 +445,13 @@ export class AccountSettingsPage extends UserSettingsPage {
   }
 
   get updatePasswordButton(): Locator {
-    return this.page.locator(
-      "xpath=//div[h2[text()='Change Password']]//button[.//span[text()='Update']]"
-    );
+    return this.page
+      .locator('div:has(> h2:text-is("Change Password"))')
+      .getByRole('button', { name: 'Update', exact: true });
   }
 
   get updatePasswordButtonInactive(): Locator {
-    return this.page.locator(
-      "xpath=//div[h2[text()='Change Password']]//button[@disabled and .//span[text()='Update']]"
-    );
+    return this.updatePasswordButton.and(this.page.locator('[disabled]'));
   }
 
   get oldPasswordErrorMessage(): Locator {
@@ -502,21 +461,19 @@ export class AccountSettingsPage extends UserSettingsPage {
   }
 
   get newPasswordErrorMessage(): Locator {
-    return this.page.locator(
-      "xpath=//small[normalize-space(.)='Password must be at least 8 characters long.']"
-    );
+    return this.page.getByText('Password must be at least 8 characters long.', { exact: true });
   }
 
   get confirmPasswordErrorMessage(): Locator {
-    return this.page.locator("xpath=//small[normalize-space(.)='Passwords do not match']");
+    return this.page.getByText('Passwords do not match', { exact: true });
   }
 
   get configure2faButton(): Locator {
-    return this.page.locator("xpath=//button[.//span[normalize-space(.)='Configure']]");
+    return this.page.getByRole('button', { name: 'Configure', exact: true });
   }
 
   get configure2faTitle(): Locator {
-    return this.page.locator("xpath=//h2[normalize-space(.)='Two-factor authentication']");
+    return this.page.getByRole('heading', { name: 'Two-factor authentication', exact: true });
   }
 
   get twoFactorQrCodeImg(): Locator {
@@ -528,19 +485,15 @@ export class AccountSettingsPage extends UserSettingsPage {
   }
 
   get requestDeactivationButton(): Locator {
-    return this.page.locator("xpath=//span[text()='Request deactivation']");
+    return this.page.getByRole('button', { name: 'Request deactivation', exact: true });
   }
 
   get pendingDeactivationMessage(): Locator {
-    return this.page.locator(
-      'xpath=//p[normalize-space()="Your account is currently pending deactivation."]'
-    );
+    return this.page.getByText('Your account is currently pending deactivation.', { exact: true });
   }
 
   get undoDeactivationRequestButton(): Locator {
-    return this.page.locator(
-      'xpath=//button[.//span[normalize-space()="Undo deactivation request"]]'
-    );
+    return this.page.getByRole('button', { name: 'Undo deactivation request', exact: true });
   }
 
   get unconfirmedEmails(): Locator {
@@ -548,9 +501,7 @@ export class AccountSettingsPage extends UserSettingsPage {
   }
 
   get optOutCard(): Locator {
-    return this.page.locator(
-      "xpath=//div[contains(@class,'p-card-content')][.//h2[normalize-space()='Opt out of SHARE indexing']]"
-    );
+    return this.page.locator('div.p-card-content:has(h2:text-is("Opt out of SHARE indexing"))');
   }
 
   get firstRadioOptOut(): Locator {
@@ -562,18 +513,15 @@ export class AccountSettingsPage extends UserSettingsPage {
   }
 
   get updateButton(): Locator {
-    return this.page.locator(
-      "xpath=//h2[normalize-space()='Opt out of SHARE indexing']" +
-        "/ancestor::div[@data-pc-section='content'][1]" +
-        "//button[.//span[normalize-space()='Update']]"
-    );
+    return this.page
+      .locator('div[data-pc-section="content"]:has(h2:text-is("Opt out of SHARE indexing"))')
+      .getByRole('button', { name: 'Update', exact: true });
   }
 
   get successfullyUpdatedShareMessage(): Locator {
-    return this.page.locator(
-      "xpath=//div[contains(@class,'p-toast-message')]" +
-        "//div[contains(@class,'font-medium') and normalize-space()='Successfully updated SHARE indexing preference.']"
-    );
+    return this.page
+      .locator('.p-toast-message .font-medium')
+      .filter({ hasText: 'Successfully updated SHARE indexing preference.' });
   }
 
   get closeModalWindowButton(): Locator {
@@ -632,11 +580,11 @@ export class ConfigureAddonsPage extends UserSettingsPage {
   }
 
   get allAddonsTab(): Locator {
-    return this.page.locator("xpath=//p-tab[text()=' All Add-ons ']");
+    return this.page.getByRole('tab', { name: 'All Add-ons' });
   }
 
   get connectedAddonsTab(): Locator {
-    return this.page.locator("xpath=//p-tab[text()=' Connected Add-ons ']");
+    return this.page.getByRole('tab', { name: 'Connected Add-ons' });
   }
 
   get searchInput(): Locator {
@@ -648,19 +596,19 @@ export class ConfigureAddonsPage extends UserSettingsPage {
   }
 
   get connectedTabEmpty(): Locator {
-    return this.page.locator('xpath=//p[text()="No results found."]');
+    return this.page.getByText('No results found.', { exact: true });
   }
 
   get disableButton(): Locator {
-    return this.page.locator('xpath=//button[.//span[normalize-space()="Disable"]]');
+    return this.page.getByRole('button', { name: 'Disable', exact: true });
   }
 
   get startAuthButton(): Locator {
-    return this.page.locator('xpath=//a[text()=" Start OAuth "]');
+    return this.page.getByRole('link', { name: 'Start OAuth' });
   }
 
   connectedTabSearchInput(): Locator {
-    return this.page.locator('xpath=//input[@placeholder="Search add-ons"]').nth(1);
+    return this.page.getByPlaceholder('Search add-ons').nth(1);
   }
 
   async clickOnTab(tab: Locator): Promise<void> {
@@ -668,26 +616,25 @@ export class ConfigureAddonsPage extends UserSettingsPage {
   }
 
   async selectFromAddonDropdown(dropdownOption: string): Promise<void> {
-    const addonDropdown = this.page.locator('xpath=//div[@class="p-select-dropdown"]').nth(1);
-    const selectedLabel = this.page.locator('xpath=//span[@class="p-select-label"]').nth(1);
+    const addonDropdown = this.page.locator('div.p-select-dropdown').nth(1);
+    const selectedLabel = this.page.locator('span.p-select-label').nth(1);
     // The option click occasionally doesn't register (selected label stays on the
     // previous category) - verify it took effect and retry the whole click sequence
     // if not, rather than trusting a single click blindly.
+    // The dropdown options' accessible name is an untranslated i18n key (e.g.
+    // "settings.addons.categories.citationManager"), not the visible label, so
+    // getByRole can't match on visible text here - match the rendered text instead.
     await expect(async () => {
       await addonDropdown.click();
       await this.page
-        .locator(
-          `xpath=//div[@class="p-select-list-container"]//li[text()=" ${dropdownOption} "]`
-        )
+        .locator('div.p-select-list-container li', { hasText: dropdownOption })
         .click();
       await expect(selectedLabel).toHaveText(new RegExp(dropdownOption), { timeout: 5000 });
     }).toPass({ timeout: 20000 });
   }
 
   async clickOnButton(buttonName: string): Promise<void> {
-    await this.page
-      .locator(`xpath=//button[.//span[normalize-space()='${buttonName}']]`)
-      .click();
+    await this.page.getByRole('button', { name: buttonName, exact: true }).click();
   }
 
   async getAddonsList(): Promise<string[]> {
@@ -756,7 +703,7 @@ export class DeveloperAppsPage extends UserSettingsPage {
   }
 
   get createDevAppButton(): Locator {
-    return this.page.locator('xpath=//button[.//span[normalize-space()="Create Developer App"]]');
+    return this.page.getByRole('button', { name: 'Create Developer App', exact: true });
   }
 
   get loadingIndicator(): Locator {
@@ -777,7 +724,7 @@ export class DeveloperAppsPage extends UserSettingsPage {
     // take a one-shot snapshot of `devAppCards` (which can catch a stale, partial
     // render and miss a just-created app).
     const card = this.devAppCards.filter({
-      has: this.page.locator(`xpath=.//a[contains(@class,"app-link")]//h2[normalize-space()="${appName}"]`),
+      has: this.page.locator('a.app-link').getByRole('heading', { name: appName, exact: true }),
     });
     return (await present(card, settings.TIMEOUT_MS)) ? card : null;
   }
@@ -793,33 +740,23 @@ export class CreateDeveloperAppPage extends UserSettingsPage {
   }
 
   get appNameInput(): Locator {
-    return this.page.locator(
-      "xpath=//label[normalize-space(text())='App Name']/following-sibling::input"
-    );
+    return this.identity.getByLabel('App Name', { exact: true });
   }
 
   get projectUrlInput(): Locator {
-    return this.page.locator(
-      "xpath=//label[normalize-space(text())='Project homepage URL']/following-sibling::input"
-    );
+    return this.identity.getByLabel('Project homepage URL', { exact: true });
   }
 
   get appDescriptionTextarea(): Locator {
-    return this.page.locator(
-      "xpath=//label[normalize-space(text())='App description (optional)']/following-sibling::input"
-    );
+    return this.identity.getByLabel('App description (optional)', { exact: true });
   }
 
   get callbackUrlInput(): Locator {
-    return this.page.locator(
-      "xpath=//label[normalize-space(text())='Authorization callback URL']/following-sibling::input"
-    );
+    return this.identity.getByLabel('Authorization callback URL', { exact: true });
   }
 
   get createDevAppButton(): Locator {
-    return this.page.locator(
-      'xpath=//p-button[@type="submit"]//button[span[text()="Create Developer App"]]'
-    );
+    return this.identity.getByRole('button', { name: 'Create Developer App', exact: true });
   }
 }
 
@@ -841,9 +778,9 @@ export class EditDeveloperAppPage extends UserSettingsPage {
   }
 
   get clientSecretInput(): Locator {
-    return this.page.locator(
-      'xpath=//section[h2[normalize-space(text())="Client Secret"]]//input[@pinputtext and @readonly]'
-    );
+    return this.page
+      .locator('section:has(> h2:text-is("Client Secret"))')
+      .locator('input[pinputtext][readonly]');
   }
 
   get showClientSecretButton(): Locator {
@@ -851,31 +788,23 @@ export class EditDeveloperAppPage extends UserSettingsPage {
   }
 
   get appNameInput(): Locator {
-    return this.page.locator(
-      'xpath=//osf-text-input[label[normalize-space(text())="App Name"]]//input[@pinputtext]'
-    );
+    return this.identity.getByLabel('App Name', { exact: true });
   }
 
   get projectUrlInput(): Locator {
-    return this.page.locator(
-      'xpath=//osf-text-input[label[normalize-space(text())="Project homepage URL"]]//input[@pinputtext]'
-    );
+    return this.identity.getByLabel('Project homepage URL', { exact: true });
   }
 
   get appDescriptionTextarea(): Locator {
-    return this.page.locator(
-      'xpath=//osf-text-input[label[normalize-space(text())="App description (optional)"]]//input[@pinputtext]'
-    );
+    return this.identity.getByLabel('App description (optional)', { exact: true });
   }
 
   get callbackUrlInput(): Locator {
-    return this.page.locator(
-      'xpath=//osf-text-input[label[normalize-space(text())="Authorization callback URL"]]//input[@pinputtext]'
-    );
+    return this.identity.getByLabel('Authorization callback URL', { exact: true });
   }
 
   get saveButton(): Locator {
-    return this.page.locator('xpath=//button[span[text()="Save"]]');
+    return this.page.getByRole('button', { name: 'Save', exact: true });
   }
 
   get loadingIndicator(): Locator {
@@ -909,9 +838,7 @@ export class CreatePersonalAccessTokenPage extends UserSettingsPage {
   }
 
   get tokenNameInput(): Locator {
-    return this.page.locator(
-      'xpath=//osf-text-input[label[normalize-space(text())="Token Name"]]//input'
-    );
+    return this.identity.getByLabel('Token Name', { exact: true });
   }
 
   /** Scope checkboxes, keyed the same way as the `id` attribute in the DOM (matches
@@ -943,7 +870,7 @@ export class EditPersonalAccessTokenPage extends UserSettingsPage {
   }
 
   get identity(): Locator {
-    return this.page.locator('xpath=//h2[normalize-space()="Edit Token"]');
+    return this.page.getByRole('heading', { name: 'Edit token', exact: true });
   }
 
   get loadingIndicator(): Locator {
@@ -951,9 +878,7 @@ export class EditPersonalAccessTokenPage extends UserSettingsPage {
   }
 
   get backToListOfTokensLink(): Locator {
-    return this.page.locator(
-      'xpath=//a[normalize-space()="Back to list of personal tokens"]'
-    );
+    return this.page.getByRole('link', { name: 'Back to list of personal tokens', exact: true });
   }
 
   get tokenNameInput(): Locator {
@@ -1015,7 +940,7 @@ export class PersonalAccessTokenPage extends UserSettingsPage {
     // list can still be mid-render for a moment right after the loading
     // indicator disappears (see getDevAppCardByAppName for the same issue).
     const card = this.patCards.filter({
-      has: this.page.locator(`xpath=.//a[contains(@class,"token-link") and normalize-space()="${patName}"]`),
+      has: this.page.locator('a.token-link').getByText(patName, { exact: true }),
     });
     return (await present(card, settings.TIMEOUT_MS)) ? card : null;
   }

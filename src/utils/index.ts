@@ -100,3 +100,14 @@ export async function getUserNameFromHeader(page: Page): Promise<string> {
   await userNameEl.waitFor({ state: 'visible', timeout: 10000 });
   return (await userNameEl.innerText()).trim();
 }
+
+/**
+ * Port of the `click_expecting_popup()` + `driver.switch_to.window(driver.window_handles[-1])`
+ * pattern used throughout the Python search tests to follow a search-result title
+ * link into the new tab it opens.
+ */
+export async function clickExpectingPopup(page: Page, locator: Locator): Promise<Page> {
+  const [popup] = await Promise.all([page.context().waitForEvent('page'), locator.click()]);
+  await popup.waitForLoadState();
+  return popup;
+}
