@@ -1,0 +1,152 @@
+name: Single Test Runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_env:
+        description: 'Testing Environment'
+        required: true
+        default: 'test'
+        type: choice
+        options:
+          - test
+          - test4
+          - stage1
+          - stage2
+          - stage3
+          - stage4
+          - prod
+      test_file:
+        description: 'Test File'
+        required: true
+        default: 'login.spec.ts'
+        type: choice
+        options:
+          - login.spec.ts
+          - search.spec.ts
+          - user.spec.ts
+      browser:
+        description: 'Browser'
+        required: true
+        default: 'All'
+        type: choice
+        options:
+          - All
+          - chromium
+          - firefox
+          - edge
+
+env:
+  HEADLESS: 'true'
+  NEW_USER_EMAIL: ${{ secrets.NEW_USER_EMAIL }}
+  USER_ONE: ${{ secrets.USER_ONE }}
+  USER_ONE_PASSWORD: ${{ secrets.USER_ONE_PASSWORD }}
+  USER_TWO: ${{ secrets.USER_TWO }}
+  USER_TWO_PASSWORD: ${{ secrets.USER_TWO_PASSWORD }}
+  DEACTIVATED_USER: ${{ secrets.DEACTIVATED_USER }}
+  DEACTIVATED_USER_PASSWORD: ${{ secrets.DEACTIVATED_USER_PASSWORD }}
+  UNCONFIRMED_USER: ${{ secrets.UNCONFIRMED_USER }}
+  UNCONFIRMED_USER_PASSWORD: ${{ secrets.UNCONFIRMED_USER_PASSWORD }}
+  CAS_2FA_USER: ${{ secrets.CAS_2FA_USER }}
+  CAS_2FA_USER_PASSWORD: ${{ secrets.CAS_2FA_USER_PASSWORD }}
+  CAS_TOS_USER: ${{ secrets.CAS_TOS_USER }}
+  CAS_TOS_USER_PASSWORD: ${{ secrets.CAS_TOS_USER_PASSWORD }}
+  DEVAPP_CLIENT_ID: ${{ secrets.DEVAPP_CLIENT_ID }}
+  DEVAPP_CLIENT_SECRET: ${{ secrets.DEVAPP_CLIENT_SECRET }}
+  IMAP_EMAIL: ${{ secrets.IMAP_EMAIL }}
+  IMAP_EMAIL_PASSWORD: ${{ secrets.IMAP_EMAIL_PASSWORD }}
+  IMAP_HOST: ${{ secrets.IMAP_HOST }}
+  REGISTRATIONS_USER: ${{ secrets.REGISTRATIONS_USER }}
+  REGISTRATIONS_USER_PASSWORD: ${{ secrets.REGISTRATIONS_USER_PASSWORD }}
+  PREFERRED_NODE: ${{ secrets.PREFERRED_NODE }}
+  POPULAR_PAGES: ${{ secrets.POPULAR_PAGES }}
+  PROFILE_USER: ${{ secrets.PROFILE_USER }}
+  PROFILE_USER_PASSWORD: ${{ secrets.PROFILE_USER_PASSWORD }}
+  USER_ONE_STAGE1_PAT: ${{ secrets.USER_ONE_STAGE1_PAT }}
+  USER_ONE_STAGE2_PAT: ${{ secrets.USER_ONE_STAGE2_PAT }}
+  USER_ONE_STAGE3_PAT: ${{ secrets.USER_ONE_STAGE3_PAT }}
+  USER_ONE_STAGE4_PAT: ${{ secrets.USER_ONE_STAGE4_PAT }}
+  USER_ONE_TEST_PAT: ${{ secrets.USER_ONE_TEST_PAT }}
+  USER_ONE_TEST4_PAT: ${{ secrets.USER_ONE_TEST4_PAT }}
+  USER_ONE_PAT: ${{ secrets.USER_ONE_PAT }}
+  MENDELEY_EMAIL: ${{ secrets.MENDELEY_EMAIL }}
+  MENDELEY_PASSWORD: ${{ secrets.MENDELEY_PASSWORD }}
+  ZOTERO_USER: ${{ secrets.ZOTERO_USER }}
+  ZOTERO_PASSWORD: ${{ secrets.ZOTERO_PASSWORD }}
+  DATAVERSE_URL: ${{ secrets.DATAVERSE_URL }}
+  DATAVERSE_API_TOKEN: ${{ secrets.DATAVERSE_API_TOKEN }}
+  ADMIN_USER: ${{ secrets.ADMIN_USER }}
+  ADMIN_USER_PASSWORD: ${{ secrets.ADMIN_USER_PASSWORD }}
+  WRITE_USER: ${{ secrets.WRITE_USER }}
+  WRITE_USER_PASSWORD: ${{ secrets.WRITE_USER_PASSWORD }}
+  READ_USER: ${{ secrets.READ_USER }}
+  READ_USER_PASSWORD: ${{ secrets.READ_USER_PASSWORD }}
+
+jobs:
+  # Playwright's own browser matrix (chromium/firefox/edge) replaces the Python suite's
+  # BrowserStack-backed chrome/firefox/edge matrix, so browsers are installed locally
+  # per-leg below rather than dispatched to a remote grid.
+  set_matrix:
+    name: Set Matrix of Browser Values
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set_matrix.outputs.matrix }}
+    steps:
+      - id: set_matrix
+        run: |
+          if [ "${{ github.event.inputs.browser }}" = "All" ]; then
+            echo 'matrix=["chromium","firefox","edge"]' >> "$GITHUB_OUTPUT"
+          else
+            echo "matrix=[\"${{ github.event.inputs.browser }}\"]" >> "$GITHUB_OUTPUT"
+          fi
+
+  single_file_test:
+    name: Single Test File Runner (${{ matrix.browser }})
+    needs: [set_matrix]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 1 # run in series, mirrors the Python suite's BrowserStack concurrency limit
+      matrix:
+        browser: ${{ fromJson(needs.set_matrix.outputs.matrix) }}
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: |
+          if [ "${{ matrix.browser }}" = "edge" ]; then
+            npx playwright install --with-deps msedge
+          else
+            npx playwright install --with-deps ${{ matrix.browser }}
+          fi
+
+      - name: Run test file
+        env:
+          TEST_ENV: ${{ github.event.inputs.test_env }}
+        run: npx playwright test "tests/${{ github.event.inputs.test_file }}" --project=${{ matrix.browser }}
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload test results (traces/videos/screenshots)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.browser }}
+          path: test-results/
+          retention-days: 7
