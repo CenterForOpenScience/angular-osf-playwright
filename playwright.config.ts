@@ -22,6 +22,7 @@ export default defineConfig({
   // fire, so failures surface as an opaque global timeout (plus a cascading
   // "Target page, context or browser has been closed" from the mid-flight kill)
   // instead of a clear "element X never appeared" error.
+  
   timeout: settings.VERY_LONG_TIMEOUT_MS,
   expect: {
     timeout: settings.TIMEOUT_MS,
