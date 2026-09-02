@@ -166,6 +166,7 @@ async function verifyPreprintSearchCard(
 
   const popup = await clickExpectingPopup(page, preprintSearchPage.preprintTitle);
   const preprintDetail = new PreprintPage(popup);
+  
   await expect(preprintDetail.identity).toBeVisible();
   const preprintDetailTitle = (await preprintDetail.preprintTitle.innerText()).trim();
 
