@@ -14,7 +14,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 1,
-  workers: process.env.CI ? 2 : 1,
+  workers: process.env.CI ? 1 : 1,
   reporter: [['list'], ['html', { open: 'never' }]],
   // Must stay comfortably above the largest individual wait below (navigationTimeout,
   // LONG_TIMEOUT_MS) - otherwise a single slow-but-legitimate navigation/assertion can
