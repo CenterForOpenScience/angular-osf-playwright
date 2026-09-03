@@ -98,6 +98,7 @@ tests/
   login.spec.ts         # port of tests/test_login.py
   user.spec.ts          # port of tests/test_user.py
   search.spec.ts        # port of tests/test_search.py
+  navbar.spec.ts        # port of tests/test_navbar.py
 ```
 
 ## Migration status
@@ -112,7 +113,7 @@ tick it in **both** files.
 | 2 | User settings | `tests/test_user.py` | `tests/user.spec.ts` | [x] Migrated |
 | 3 | Profile | `tests/test_profile.py` | — | [ ] Not migrated |
 | 4 | Search | `tests/test_search.py` | `tests/search.spec.ts` | [x] Migrated |
-| 5 | Navbar | `tests/test_navbar.py` | — | [ ] Not migrated |
+| 5 | Navbar | `tests/test_navbar.py` | `tests/navbar.spec.ts` | [x] Migrated |
 | 6 | Dashboard | `tests/test_dashboard.py` | — | [ ] Not migrated |
 | 7 | Collections | `tests/test_collections.py` | — | [ ] Not migrated |
 | 8 | Registration sidebar | `tests/test_registration_sidebar.py` | — | [ ] Not migrated |
@@ -126,7 +127,7 @@ tick it in **both** files.
 | 16 | Registration user permissions | `tests/test_registration_user_permissions.py` | — | [ ] Not migrated |
 | 17 | Registries | `tests/test_registries.py` | — | [ ] Not migrated |
 
-Progress: **3 / 17** sections migrated.
+Progress: **4 / 17** sections migrated.
 
 ## Notable differences from the Python suite
 
@@ -156,5 +157,17 @@ Progress: **3 / 17** sections migrated.
 - Only the fixtures and `api/osf_api.py` functions that `conftest.py`'s fixtures
   actually call have been ported; the rest of `osf_api.py` (~2600 lines total)
   covers pages/tests well outside this stage's scope.
+- **Navbar**: the old app had a distinct navbar subclass per service
+  (`HomeNavbar`/`EmberNavbar`/`PreprintsNavbar`/`RegistriesNavbar`/etc. in
+  `components/navbars.py`), each a flat list of direct links. The current app
+  renders one persistent left sidenav shared across every section instead, so
+  `src/pages/components/Navbar.ts` is a single class rather than a hierarchy.
+  Some items (Registries, Preprints, My OSF, Settings) are dropdown parents now -
+  clicking them only expands a submenu, so reaching e.g. Preprints Discover is a
+  two-step expand-then-select instead of one direct link click. `test_navbar.py`'s
+  `NavbarTestLoggedOutMixin`/`NavbarTestLoggedInMixin` are ported as plain shared
+  functions called from each `test.describe` block, since Playwright has no
+  class-inheritance equivalent. See `CLAUDE.md`'s "Known-flaky backend endpoints"
+  section for a residual click-timing flake on the dropdown items.
 
 ## Next steps

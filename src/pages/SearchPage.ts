@@ -46,8 +46,14 @@ export class SearchPage extends BasePage {
     await hereThenGone(this.loadingIndicator);
   }
 
+  /**
+   * `div[data-analytics-scope="Search page main"]` (the original port of this
+   * locator) no longer exists anywhere in the app's markup - confirmed live via
+   * `tests/_debug_inspect.spec.ts` per `CLAUDE.md`'s "verify against the live DOM"
+   * rule. `osf-search-page` is the stable custom-element wrapper that replaced it.
+   */
   get identity(): Locator {
-    return this.page.locator('div[data-analytics-scope="Search page main"]');
+    return this.page.locator('osf-search-page');
   }
 
   get loadingIndicator(): Locator {
