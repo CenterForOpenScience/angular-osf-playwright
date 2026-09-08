@@ -76,11 +76,7 @@ test.describe('2FA Page', { tag: '@core' }, () => {
   });
 });
 
-/**
- * Logs in as a user that has not accepted the OSF Terms of Service and verifies the
- * elements on the ToS acceptance page, without actually accepting (that would spoil
- * user setup data for future test runs).
- */
+
 test.describe('Terms of Service Page', { tag: '@core' }, () => {
   test.beforeEach(() => {
     test.skip(settings.PRODUCTION, 'Test should not run on production');
@@ -186,10 +182,6 @@ test.describe('Login Errors', { tag: '@core' }, () => {
   });
 });
 
-/**
- * CAS custom exception pages share the CAS login page style/appearance. Some
- * require manipulating urls to reach, since they can't easily be triggered via UI.
- */
 test.describe('Custom Exception Pages', { tag: '@core' }, () => {
   test.beforeEach(async ({ throttleOnProd }) => {
     void throttleOnProd;
@@ -231,7 +223,7 @@ test.describe('Custom Exception Pages', { tag: '@core' }, () => {
   });
 });
 
-/** Try to verify a login page; return the verified page instance or false. */
+
 async function tryLoginPage<T extends BasePage>(
   page: Page,
   PageClass: new (page: Page) => T
@@ -322,11 +314,7 @@ test.describe('Institution Login Page', { tag: ['@smoke', '@core'] }, () => {
     await page.waitForURL('https://status.cos.io/', { timeout: 10000 });
   });
 
-  /**
-   * Confirms that selecting each institution from the dropdown and clicking Sign In
-   * actually navigates to a valid institution login page. Only runs in Production
-   * since most institutions don't have working test environments.
-   */
+
   institutionTest('individual institution login pages', async ({
     page,
     institutionLoginPage,

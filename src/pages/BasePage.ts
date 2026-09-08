@@ -48,7 +48,7 @@ export abstract class BasePage {
 
   async getDates(labelText: string): Promise<Date[]> {
     const texts = await this.page
-      .locator(`xpath=//p[contains(text(),'${labelText}:')]`)
+      .locator('p', { hasText: `${labelText}:` })
       .allInnerTexts();
     return texts.map((text) => new Date(text.replace(`${labelText}: `, '').trim()));
   }

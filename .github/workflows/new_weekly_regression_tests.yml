@@ -16,6 +16,8 @@ on:
         type: choice
         options:
           - test
+          - test2
+          - test3
           - test4
           - stage1
           - stage2
@@ -42,6 +44,7 @@ on:
           - chromium
           - firefox
           - edge
+          - webkit
 
 env:
   HEADLESS: 'true'
@@ -77,6 +80,8 @@ env:
   USER_ONE_STAGE3_PAT: ${{ secrets.USER_ONE_STAGE3_PAT }}
   USER_ONE_STAGE4_PAT: ${{ secrets.USER_ONE_STAGE4_PAT }}
   USER_ONE_TEST_PAT: ${{ secrets.USER_ONE_TEST_PAT }}
+  USER_ONE_TEST2_PAT: ${{ secrets.USER_ONE_TEST2_PAT }}
+  USER_ONE_TEST3_PAT: ${{ secrets.USER_ONE_TEST3_PAT }}
   USER_ONE_TEST4_PAT: ${{ secrets.USER_ONE_TEST4_PAT }}
   USER_ONE_PAT: ${{ secrets.USER_ONE_PAT }}
   MENDELEY_EMAIL: ${{ secrets.MENDELEY_EMAIL }}
@@ -120,7 +125,7 @@ jobs:
       - id: set_matrix
         run: |
           if [ "${{ needs.set_variables.outputs.browser }}" = "All" ]; then
-            echo 'matrix=["chromium","firefox","edge"]' >> "$GITHUB_OUTPUT"
+            echo 'matrix=["chromium","firefox","edge","webkit"]' >> "$GITHUB_OUTPUT"
           else
             echo "matrix=[\"${{ needs.set_variables.outputs.browser }}\"]" >> "$GITHUB_OUTPUT"
           fi
@@ -172,8 +177,13 @@ jobs:
           TEST_ENV: ${{ needs.set_variables.outputs.test_env }}
         run: npx playwright test "${{ steps.test_path.outputs.path }}" --project=${{ matrix.browser }}
 
+      - name: Write failed tests summary
+        if: always()
+        run: node scripts/write-failure-summary.js test-results/results.json >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload Playwright report
         if: always()
+        id: upload_report
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-${{ matrix.browser }}
@@ -182,11 +192,23 @@ jobs:
 
       - name: Upload test results (traces/videos/screenshots)
         if: failure()
+        id: upload_results
         uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.browser }}
           path: test-results/
           retention-days: 7
+
+      - name: Add report/trace links to summary
+        if: always()
+        run: |
+          {
+            echo "### 📊 Reports (${{ matrix.browser }})"
+            echo "- [Playwright HTML report](${{ steps.upload_report.outputs.artifact-url }}) - unzip, then run \`npx playwright show-report <folder>\` for the full report with pass/fail per test."
+            if [ -n "${{ steps.upload_results.outputs.artifact-url }}" ]; then
+              echo "- [Raw test results / traces / videos](${{ steps.upload_results.outputs.artifact-url }}) - unzip, then run \`npx playwright show-trace <path-to-a-trace.zip>\` to open the trace viewer for one failed test directly."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Send Slack notification on failure
         if: failure() && env.SLACK_WEBHOOK_URL != ''
