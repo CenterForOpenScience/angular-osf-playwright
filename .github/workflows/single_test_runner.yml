@@ -25,6 +25,7 @@ on:
         type: choice
         options:
           - login.spec.ts
+          - navbar.spec.ts
           - search.spec.ts
           - user.spec.ts
       browser:
