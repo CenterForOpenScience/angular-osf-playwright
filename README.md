@@ -29,6 +29,8 @@ via Playwright's `--project` flag.
 ```bash
 # Environment shortcuts
 npm run test:test        # TEST_ENV=test
+npm run test:test2       # TEST_ENV=test2
+npm run test:test3       # TEST_ENV=test3
 npm run test:test4       # TEST_ENV=test4
 npm run test:stage1      # TEST_ENV=stage1 (staging.osf.io)
 npm run test:stage2
@@ -40,6 +42,7 @@ npm run test:prod
 npm run test:chromium
 npm run test:firefox
 npm run test:edge
+npm run test:webkit    # Safari engine (WebKit) - real Safari automation only exists on macOS
 npm run test:all-browsers
 
 # Combine env + browser directly
@@ -74,7 +77,7 @@ against `TEST_ENV=prod`.
 
 ```
 config/
-  environments.ts   # domain map (stage1-4, test, test4, prod) - port of the `domains` dict in settings.py
+  environments.ts   # domain map (stage1-4, test, test2, test3, test4, prod) - port of the `domains` dict in settings.py
   settings.ts        # env-var driven settings - port of settings.py
 src/
   api/
@@ -131,9 +134,11 @@ Progress: **4 / 17** sections migrated.
 
 ## Notable differences from the Python suite
 
-- **Cross-browser** is a Playwright `project` (`chromium`/`firefox`/`edge`) instead
-  of Selenium `DRIVER`/BrowserStack config. BrowserStack/Remote execution was not
-  ported in this stage - only local chromium/firefox/msedge.
+- **Cross-browser** is a Playwright `project` (`chromium`/`firefox`/`edge`/`webkit`)
+  instead of Selenium `DRIVER`/BrowserStack config. BrowserStack/Remote execution was
+  not ported in this stage - only local chromium/firefox/msedge/webkit. `webkit` is
+  Playwright's own WebKit engine (a Safari stand-in), not real Safari - real Safari
+  automation only runs on macOS.
 - **`driver` fixture** is replaced by Playwright's built-in `page` fixture; there's
   no `launch_driver()` equivalent to maintain.
 - **Locator waiting**: Playwright locators auto-wait, so page objects expose plain

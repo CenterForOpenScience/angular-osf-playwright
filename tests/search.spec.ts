@@ -16,18 +16,6 @@ import { ProjectPage } from '../src/pages/ProjectPage';
 import { UserProfilePage } from '../src/pages/UserProfilePage';
 import { present, clickExpectingPopup } from '../src/utils';
 
-/**
- * Port of `tests/test_search.py` (118 tests). The Python file's
- * `@markers.smoke_test @markers.core_functionality @pytest.mark.usefixtures('throttle_on_prod')`
- * decorators sit on `SearchPageBase` and are inherited by every test class in the
- * file, so the whole suite is wrapped in one `@smoke @core` describe below with
- * `throttleOnProd` applied in `beforeEach`.
- *
- * Per `PLAYWRIGHT_MIGRATION_RULES.md`, `wait_until_page_ready` / `here_then_gone` /
- * `scroll_to` calls from the Python source are dropped throughout - Playwright's
- * locator auto-waiting and auto-retrying `expect()` already cover the same
- * synchronization points.
- */
 
 const test = base.extend<{
   searchPage: SearchPage;
@@ -117,13 +105,6 @@ async function contributorNames(locator: Locator): Promise<string[]> {
   return texts.map((text) => text.trim().replace(/,$/, '').trim());
 }
 
-/**
- * Shared by every `search in filtering by X` test: expand the given accordion menu,
- * open its multiselect dropdown, then verify the filter-within-filter search box
- * (`SearchPage.checkSearchInFilteringOptions`). The Python source repeats this
- * 3-line sequence inline in ~30 near-identical tests; factored here the same way
- * `tests/user.spec.ts` factors its own repeated flows (e.g. `fillDatePickerField`).
- */
 async function checkSearchInFilteringOptionsFor(
   searchPageShort: SearchPage,
   menu: Locator,
@@ -135,12 +116,6 @@ async function checkSearchInFilteringOptionsFor(
   await searchPageShort.checkSearchInFilteringOptions(recordIndex);
 }
 
-// ---------------------------------------------------------------------------------
-// Shared "search card" verifications - also used by the All-tab dispatch test
-// (`test_search_card_all` in Python calls the other tab classes' test methods
-// directly; Playwright has no equivalent of invoking one test's body from another,
-// so the shared logic is factored into these standalone functions instead).
-// ---------------------------------------------------------------------------------
 
 async function verifyPreprintSearchCard(
   page: Page,
@@ -487,15 +462,7 @@ async function verifyUserSearchCard(page: Page, userSearchPage: UserSearchResult
   }
 }
 
-/**
- * Clicking a tab link updates the tab's URL query param immediately, but the results
- * list occasionally doesn't re-query to match it - an app-level race independent of
- * any wait added here (reproduced with the URL correctly on `tab=1` while the cards
- * still showed the previous tab's mixed types, indefinitely, with no spinner ever
- * re-appearing). `page.reload()` forces a fresh fetch for the now-current tab and
- * reliably clears it - the same retry-via-reload already used in
- * `verifyProjectSearchCard` for the sibling "Project Component" flake.
- */
+
 async function clickTabAndVerifyType(
   page: Page,
   searchPage: SearchPage,
@@ -524,9 +491,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     void throttleOnProd;
   });
 
-  // -------------------------------------------------------------------------------
-  // TestSearchPage (5 tests)
-  // -------------------------------------------------------------------------------
+
   test.describe('Search Results', () => {
     test('search results exist on all tab', async ({ searchPage }) => {
       await searchPage.searchInput.fill('test');

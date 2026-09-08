@@ -132,27 +132,68 @@ export class Configure2FAModal {
   }
 }
 
+/**
+ * The "Add alternative email" PrimeNG dynamic dialog and the "Confirmation email sent"
+ * panel it is replaced by on submit. While that swap animates, both panels are in the
+ * DOM at once, so nothing here may be addressed as "the" dialog - each panel is
+ * matched by its own header text instead. (Headers are capitalized with CSS, hence
+ * the case-insensitive patterns.)
+ */
 export class ConfirmEmailSentModal {
   constructor(protected readonly page: Page) {}
 
-  get cancelButton(): Locator {
-    return this.page.getByRole('button', { name: 'Cancel', exact: true });
+  private panel(title: RegExp): Locator {
+    return this.page
+      .locator('p-dynamicdialog .p-dialog')
+      .filter({ has: this.page.locator('.p-dialog-title', { hasText: title }) });
   }
 
+  get addEmailPanel(): Locator {
+    return this.panel(/add alternative email/i);
+  }
+
+  get confirmationPanel(): Locator {
+    return this.panel(/confirmation email sent/i);
+  }
+
+  get cancelButton(): Locator {
+    return this.addEmailPanel.getByRole('button', { name: 'Cancel', exact: true });
+  }
+
+  /** The "X" icon button in the add-email panel's header. */
   get alternativeEmailCloseButton(): Locator {
-    return this.page.locator('.p-dialog-close-button');
+    return this.addEmailPanel.locator('.p-dialog-close-button');
   }
 
   get addButton(): Locator {
-    return this.page.getByRole('button', { name: 'Add', exact: true });
+    return this.addEmailPanel.getByRole('button', { name: 'Add', exact: true });
   }
 
+  /**
+   * The confirmation panel's footer "Close" button. Its header "X" button carries
+   * `aria-label="Close"` and so shares this accessible name - `hasText` tells the two
+   * apart, since the icon-only button has no text content.
+   */
   get closeButton(): Locator {
-    return this.page.getByRole('button', { name: 'Close', exact: true });
+    return this.confirmationPanel
+      .getByRole('button', { name: 'Close', exact: true })
+      .filter({ hasText: 'Close' });
   }
 
   get closeModalButton(): Locator {
-    return this.page.locator('[aria-label="Close"]');
+    return this.confirmationPanel.locator('[aria-label="Close"]');
+  }
+
+  /**
+   * Waits for the modal overlay to actually go away. The overlay blocks every click on
+   * the page behind it, so a dialog that failed to close surfaces as some unrelated
+   * element "intercepting pointer events" much later in the test.
+   */
+  async waitUntilClosed(timeout = 15000): Promise<void> {
+    await this.page
+      .locator('.p-dialog-mask.p-overlay-mask')
+      .first()
+      .waitFor({ state: 'detached', timeout });
   }
 }
 

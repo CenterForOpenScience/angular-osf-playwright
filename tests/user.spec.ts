@@ -412,6 +412,9 @@ test.describe('User Account Settings', () => {
     await settingsPage.goto();
     await acceptCookies(page);
 
+    const emailSentModal = settingsPage.confirmEmailSentModal;
+
+
     const removeIconButton = settingsPage.connectedEmailRemoveIconButton;
     if (await present(removeIconButton, 3000)) {
       await removeIconButton.click();
@@ -421,20 +424,27 @@ test.describe('User Account Settings', () => {
     await waitUntilToastMessageGone(page);
     await waitForOverlayToDisappear(page);
 
-    const addEmailButton = page.getByRole('button', { name: 'Add Email', exact: true });
+ 
+    const addEmailButton = settingsPage.addEmailButton;
     await addEmailButton.waitFor({ state: 'visible', timeout: 10000 });
     await waitUntilToastMessageGone(page);
     await waitForOverlayToDisappear(page);
     await addEmailButton.click();
+    await expect(emailSentModal.addEmailPanel).toBeVisible();
     await settingsPage.emailAddressInput.pressSequentially(settings.IMAP_EMAIL);
-    await settingsPage.confirmEmailSentModal.alternativeEmailCloseButton.click();
+    await emailSentModal.alternativeEmailCloseButton.click();
+    await emailSentModal.waitUntilClosed();
 
+    // Second pass: submit the address for real.
     await waitUntilToastMessageGone(page);
-    await waitForOverlayToDisappear(page);
-    await settingsPage.addEmailButton.click();
+    await addEmailButton.click();
+    await expect(emailSentModal.addEmailPanel).toBeVisible();
     await settingsPage.emailAddressInput.pressSequentially(settings.IMAP_EMAIL);
-    await settingsPage.confirmEmailSentModal.addButton.click();
-    await settingsPage.confirmEmailSentModal.closeButton.click();
+    await emailSentModal.addButton.click();
+
+    await expect(emailSentModal.confirmationPanel).toBeVisible();
+    await emailSentModal.closeButton.click();
+    await emailSentModal.waitUntilClosed();
 
     await expect(
       page.locator("button.p-ripple.p-button.p-component.p-button-secondary span[data-pc-section='label']")

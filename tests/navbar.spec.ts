@@ -20,23 +20,6 @@ import {
   SupportPage,
 } from '../src/pages/BrowsePages';
 
-/**
- * Port of `tests/test_navbar.py`. The Python original modeled shared assertions as
- * `NavbarTestLoggedOutMixin`/`NavbarTestLoggedInMixin` classes injected into several
- * `Test*` classes via inheritance; there's no equivalent mixin mechanism for
- * Playwright's `test()`/`test.describe()`, so the same shared bodies are plain
- * functions called from each describe block below instead - see
- * `checkOsfHomeDropdownLink` etc. and the `NavbarTestLoggedOutMixin`/
- * `NavbarTestLoggedInMixin` port comments just above them.
- *
- * See `src/pages/components/Navbar.ts` for why this is one `Navbar` class instead
- * of a `HomeNavbar`/`EmberNavbar`/`PreprintsNavbar`/... hierarchy, and
- * `src/pages/BrowsePages.ts` for the identity-only landing pages used here.
- */
-
-// ---------------------------------------------------------------------------
-// Port of `NavbarTestLoggedOutMixin`
-// ---------------------------------------------------------------------------
 
 async function checkOsfHomeDropdownLink(page: Page, navbar: Navbar): Promise<void> {
   await navbar.homeLink.click();
@@ -77,25 +60,12 @@ async function checkUserDropdownNotPresent(navbar: Navbar): Promise<void> {
   expect(await absent(navbar.settingsHeader, settings.QUICK_TIMEOUT_MS)).toBe(true);
 }
 
-// ---------------------------------------------------------------------------
-// Port of `NavbarTestLoggedInMixin`
-// ---------------------------------------------------------------------------
 
 async function checkUserProfileMenuProfileLink(page: Page, navbar: Navbar): Promise<void> {
   await navbar.profileLink.click();
   await expect(new UserProfilePage(page).identity).toBeVisible();
 }
 
-/**
- * Port of `test_user_profile_menu_settings_link`. The Python original actually
- * clicked the very same `my-profile_header` id as the profile-link test above -
- * `components/navbars.py` mapped both `user_profile_link` and the settings test's
- * direct `By.ID` lookup to that one element, a pre-existing quirk of the old flat
- * navbar. The current app cleanly separates "Profile" (`my-profile_header`, tested
- * above) from "Settings > Profile Settings" (`settings_header` -> `settings-profile`),
- * so this test now genuinely exercises the settings path instead of duplicating the
- * profile-link test above.
- */
 async function checkUserProfileMenuSettingsLink(page: Page, navbar: Navbar): Promise<void> {
   await navbar.clickSettingsProfileLink();
   await ProfileInformationPage.expectOn(page);
@@ -105,11 +75,7 @@ async function checkSignInButtonNotPresent(navbar: Navbar): Promise<void> {
   expect(await absent(navbar.signInButton, settings.QUICK_TIMEOUT_MS)).toBe(true);
 }
 
-/**
- * The current app has no "Sign Up" control in the persistent nav chrome at all (see
- * `Navbar.signUpButton`) - while logged in there is certainly none, so this mirrors
- * the Python original's intent even though the underlying markup changed shape.
- */
+
 async function checkSignUpButtonNotPresent(navbar: Navbar): Promise<void> {
   expect(await absent(navbar.signUpButton, settings.QUICK_TIMEOUT_MS)).toBe(true);
 }
@@ -119,9 +85,6 @@ async function checkLogoutLink(page: Page, navbar: Navbar): Promise<void> {
   await LandingPage.expectOn(page);
 }
 
-// ---------------------------------------------------------------------------
-// Port of `TestOSFHomeNavbarLoggedOut`
-// ---------------------------------------------------------------------------
 
 test.describe('OSF Home Navbar - Logged Out', { tag: ['@smoke', '@core'] }, () => {
   test.beforeEach(async ({ page, throttleOnProd }) => {
@@ -177,9 +140,6 @@ test.describe('OSF Home Navbar - Logged Out', { tag: ['@smoke', '@core'] }, () =
   });
 });
 
-// ---------------------------------------------------------------------------
-// Port of `TestOSFHomeNavbarLoggedIn`
-// ---------------------------------------------------------------------------
 
 test.describe('OSF Home Navbar - Logged In', { tag: ['@smoke', '@core'] }, () => {
   test.beforeEach(async ({ page, logInIfNotAlready, throttleOnProd }) => {
@@ -214,9 +174,6 @@ test.describe('OSF Home Navbar - Logged In', { tag: ['@smoke', '@core'] }, () =>
   });
 });
 
-// ---------------------------------------------------------------------------
-// Port of `TestPreprintsNavbarLoggedIn`
-// ---------------------------------------------------------------------------
 
 test.describe('Preprints Navbar - Logged In', { tag: ['@smoke', '@core'] }, () => {
   test.beforeEach(async ({ page, logInIfNotAlready, throttleOnProd }) => {
@@ -250,24 +207,18 @@ test.describe('Preprints Navbar - Logged In', { tag: ['@smoke', '@core'] }, () =
     await NewPreprintsProviderServicePage.expectOn(page);
   });
 
-  /**
-   * My Preprints actually navigates to the My Preprints section of My Projects,
-   * same as the Python original noted.
-   */
+
   test('my preprints link', async ({ page }) => {
     await new Navbar(page).clickMyPreprintsLink();
     expect(page.url()).toContain('/my-preprints');
   });
 });
 
-// ---------------------------------------------------------------------------
-// Port of `TestRegistriesNavbarLoggedOut`
-// ---------------------------------------------------------------------------
 
 test.describe('Registries Navbar - Logged Out', { tag: ['@smoke', '@core'] }, () => {
   test.beforeEach(async ({ page, throttleOnProd }) => {
     void throttleOnProd;
-    await page.goto(`${settings.OSF_HOME}/registries/discover`);
+    await page.goto(`${settings.OSF_HOME}`);
     await acceptCookies(page);
   });
 
@@ -299,20 +250,11 @@ test.describe('Registries Navbar - Logged Out', { tag: ['@smoke', '@core'] }, ()
     await checkUserDropdownNotPresent(new Navbar(page));
   });
 
-  /**
-   * In the Registries navbar there was no "Sign In" button, only a "Login" link -
-   * `components/navbars.py` mapped both to the very same `sign-in_header` id
-   * though, and the current app renders one shared header/sidebar regardless of
-   * section, so this is the identical check as the Home navbar's `sign in button`.
-   */
   test('sign in button', async ({ page }) => {
     await checkSignInButton(page, new Navbar(page));
   });
 });
 
-// ---------------------------------------------------------------------------
-// Port of `TestRegistriesNavbarLoggedIn`
-// ---------------------------------------------------------------------------
 
 test.describe('Registries Navbar - Logged In', { tag: ['@smoke', '@core'] }, () => {
   test.beforeEach(async ({ page, logInIfNotAlready, throttleOnProd }) => {
@@ -347,9 +289,6 @@ test.describe('Registries Navbar - Logged In', { tag: ['@smoke', '@core'] }, () 
   });
 });
 
-// ---------------------------------------------------------------------------
-// Port of `TestMeetingsNavbarLoggedIn`
-// ---------------------------------------------------------------------------
 
 test.describe('Meetings Navbar - Logged In', { tag: ['@smoke', '@core'] }, () => {
   test.beforeEach(async ({ page, logInIfNotAlready, throttleOnProd }) => {
@@ -379,9 +318,6 @@ test.describe('Meetings Navbar - Logged In', { tag: ['@smoke', '@core'] }, () =>
   });
 });
 
-// ---------------------------------------------------------------------------
-// Port of `TestInstitutionsNavbarLoggedIn`
-// ---------------------------------------------------------------------------
 
 test.describe('Institutions Navbar - Logged In', { tag: ['@smoke', '@core'] }, () => {
   test.beforeEach(async ({ page, logInIfNotAlready, throttleOnProd }) => {
@@ -411,9 +347,6 @@ test.describe('Institutions Navbar - Logged In', { tag: ['@smoke', '@core'] }, (
   });
 });
 
-// ---------------------------------------------------------------------------
-// Port of `TestProjectsNavbarLoggedIn`
-// ---------------------------------------------------------------------------
 
 test.describe('Projects Navbar - Logged In', { tag: ['@smoke', '@core'] }, () => {
   test.beforeEach(async ({ page, logInIfNotAlready, projectWithFile, throttleOnProd }) => {

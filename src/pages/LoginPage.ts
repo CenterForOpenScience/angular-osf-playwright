@@ -344,7 +344,9 @@ async function performLogin(
   user: string,
   password: string
 ): Promise<void> {
-  await page.goto(`${settings.OSF_HOME}/login`);
+
+  const defaultLandingUrl = `${settings.OSF_HOME}/dashboard/`;
+  await page.goto(`${settings.OSF_HOME}/login?next=${encodeURIComponent(defaultLandingUrl)}`);
 
   const loginPage = new LoginPage(page);
   await loginPage.submitLoginShort(user, password);
