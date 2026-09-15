@@ -252,8 +252,15 @@ export class SearchPage extends BasePage {
     return this.searchResults.first().locator('h2 a');
   }
 
+  /**
+   * `div[osfstoppropagation]` (the original port of this locator) no longer uniquely
+   * identifies the card's type badge - verified live via `tests/_debug_inspect.spec.ts`
+   * per `CLAUDE.md`'s "verify against the live DOM" rule, it now also matches every
+   * PrimeNG accordion-header div on the page. Reuse `firstCardObjectTypeLabel`, the
+   * locator `search.spec.ts` already uses successfully for this same type-badge text.
+   */
   get nodeType(): Locator {
-    return this.page.locator('div[osfstoppropagation]');
+    return this.firstCardObjectTypeLabel;
   }
 
   get searchResults(): Locator {
@@ -372,9 +379,13 @@ export class SearchPage extends BasePage {
     const resultCountAfterFilterApplying = await this.getResultsCount();
     expect(resultCountAfterFilterApplying).toBeLessThanOrEqual(numberOfRecords as number);
     const popup = await clickExpectingPopup(this.page, this.firstSearchResultTitle);
+    // A subject can appear in more than one taxonomy path, so the Subjects
+    // section can render the same tag label twice (e.g. two "Life Sciences"
+    // chips) - .first() avoids a strict-mode violation on the duplicate.
     const subjectLocator = popup
       .locator(':is(div, section):has(> h3:text-is("Subjects"))')
-      .locator('span', { hasText: nameOfRecord });
+      .locator('span', { hasText: nameOfRecord })
+      .first();
     // Same subject-taxonomy slowness as the filter dropdown above - the popup's
     // Subjects section shows a skeleton loader before the real tags populate.
     await expect(subjectLocator).toBeVisible({ timeout: 35000 });

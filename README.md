@@ -100,6 +100,7 @@ src/
 tests/
   login.spec.ts         # port of tests/test_login.py
   user.spec.ts          # port of tests/test_user.py
+  profile.spec.ts       # port of tests/test_profile.py
   search.spec.ts        # port of tests/test_search.py
   navbar.spec.ts        # port of tests/test_navbar.py
 ```
@@ -114,7 +115,7 @@ tick it in **both** files.
 |---|---------|-------------------|-----------|--------|
 | 1 | Login | `tests/test_login.py` | `tests/login.spec.ts` | [x] Migrated |
 | 2 | User settings | `tests/test_user.py` | `tests/user.spec.ts` | [x] Migrated |
-| 3 | Profile | `tests/test_profile.py` | — | [ ] Not migrated |
+| 3 | Profile | `tests/test_profile.py` | `tests/profile.spec.ts` | [x] Migrated |
 | 4 | Search | `tests/test_search.py` | `tests/search.spec.ts` | [x] Migrated |
 | 5 | Navbar | `tests/test_navbar.py` | `tests/navbar.spec.ts` | [x] Migrated |
 | 6 | Dashboard | `tests/test_dashboard.py` | — | [ ] Not migrated |
@@ -130,7 +131,7 @@ tick it in **both** files.
 | 16 | Registration user permissions | `tests/test_registration_user_permissions.py` | — | [ ] Not migrated |
 | 17 | Registries | `tests/test_registries.py` | — | [ ] Not migrated |
 
-Progress: **4 / 17** sections migrated.
+Progress: **5 / 17** sections migrated.
 
 ## Notable differences from the Python suite
 
@@ -174,5 +175,15 @@ Progress: **4 / 17** sections migrated.
   functions called from each `test.describe` block, since Playwright has no
   class-inheritance equivalent. See `CLAUDE.md`'s "Known-flaky backend endpoints"
   section for a residual click-timing flake on the dropdown items.
+- **Profile**: `pages/profile.py`'s `ProfilePage` (tab/filter/sort checks reused from
+  `search.spec.ts`'s port of `pages/search.py`) and `SearchPageHelpers` are two
+  separate Python objects bound to the same `driver`; since `SearchPage.ts` already
+  carries all the `checkFilteringBy*`/tab-link locators, `src/pages/ProfilePage.ts`
+  just extends it instead of re-implementing or duplicating them, so one
+  `ProfilePage` instance covers both roles. `tests/test_profile.py`'s own
+  `_validate_project_card`/etc. module-local helpers (near-identical to
+  `search.spec.ts`'s `verify*SearchCard` functions) are likewise duplicated locally
+  in `tests/profile.spec.ts` rather than imported across spec files, matching how
+  the Python source itself duplicates them per test module.
 
 ## Next steps

@@ -636,3 +636,36 @@ export async function updateUserEducation(
     },
   });
 }
+
+/** Port of `update_user_social` - clears every social field back out for the given user. */
+export async function updateUserSocial(session: OsfSession, userName: string): Promise<void> {
+  const userGuid = await getUserGuid(session, userName);
+  await session.patch(`/v2/users/${userGuid}/`, {
+    data: {
+      id: userGuid,
+      type: 'users',
+      attributes: {
+        social: {
+          researcherId: '',
+          linkedIn: [],
+          twitter: [],
+          github: [],
+          impactStory: '',
+          scholar: '',
+          profileWebsites: [],
+          baiduScholar: '',
+          researchGate: '',
+          ssrn: '',
+          academiaInstitution: '',
+          academiaProfileID: '',
+        },
+      },
+    },
+  });
+}
+
+/** Port of `get_user_details`. */
+export async function getUserDetails(session: OsfSession, userName: string): Promise<any> {
+  const userGuid = await getUserGuid(session, userName);
+  return session.get(`/v2/users/${userGuid}/`);
+}
