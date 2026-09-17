@@ -1,5 +1,6 @@
 import { Page, Locator } from '@playwright/test';
 
+import * as settings from '../config/settings';
 import { test as base, expect } from '../src/fixtures';
 import {
   SearchPage,
@@ -14,7 +15,7 @@ import { PreprintPage } from '../src/pages/PreprintPage';
 import { RegistrationPage } from '../src/pages/RegistrationPage';
 import { ProjectPage } from '../src/pages/ProjectPage';
 import { UserProfilePage } from '../src/pages/UserProfilePage';
-import { present, clickExpectingPopup } from '../src/utils';
+import { present, clickExpectingPopup, clickExpectingPopupByHref } from '../src/utils';
 
 
 const test = base.extend<{
@@ -77,8 +78,24 @@ function normalizeUiDate(dateString: string): Date {
     }
   }
 
-  // "Feb 17, 2026, 10:51 AM" - registration overview page format, interpreted as
-  // America/New_York local time then converted to UTC (matching the Python source).
+  // "Feb 17, 2026, 10:51 AM" - registration/project overview page format. Renders in
+  // whatever timezone the browser/OS is set to (verified live: on a Europe/Kiev
+  // runner, an API `date_created` of 17:40 UTC displayed here as "8:40 PM", i.e.
+  // plain local-time rendering) - unlike the old React/Ember frontend the Python
+  // suite this was ported from, which this function used to assume was fixed to
+  // America/New_York and "corrected" back to UTC accordingly. That correction
+  // applied a bogus offset on top of an already-local timestamp, occasionally
+  // pushing the date across midnight and failing the `.getTime()` comparisons below
+  // by exactly one day depending on the runner's own timezone. Simply dropping the
+  // time-of-day instead (rather than converting it) has the same failure mode near
+  // the runner's local midnight: a record created shortly before local midnight
+  // still renders as "today" here but as "yesterday" on the UTC-based card above.
+  // The fix is to construct the date using the *local* Date constructor (matching
+  // how the browser rendered it, since neither playwright.config nor the browser
+  // context overrides timezoneId - the browser and this Node process share the
+  // runner's system timezone) so it resolves to the correct UTC instant, then read
+  // its UTC calendar day back off - putting it on equal footing with the "simple"
+  // (already UTC) card date above.
   const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const withTime = dateString.match(/^([A-Za-z]+) (\d{1,2}), (\d{4}), (\d{1,2}):(\d{2}) (AM|PM)$/);
   if (!withTime) {
@@ -90,14 +107,10 @@ function normalizeUiDate(dateString: string): Date {
   const minute = parseInt(withTime[5], 10);
   const year = parseInt(withTime[3], 10);
   const day = parseInt(withTime[2], 10);
-
-  const asUtcGuess = Date.UTC(year, monthIndex, day, hour, minute);
-  const guess = new Date(asUtcGuess);
-  const nyString = guess.toLocaleString('en-US', { timeZone: 'America/New_York' });
-  const utcString = guess.toLocaleString('en-US', { timeZone: 'UTC' });
-  const offset = new Date(utcString).getTime() - new Date(nyString).getTime();
-  const converted = new Date(asUtcGuess + offset);
-  return new Date(Date.UTC(converted.getUTCFullYear(), converted.getUTCMonth(), converted.getUTCDate()));
+  const localInstant = new Date(year, monthIndex, day, hour, minute);
+  return new Date(
+    Date.UTC(localInstant.getUTCFullYear(), localInstant.getUTCMonth(), localInstant.getUTCDate())
+  );
 }
 
 async function contributorNames(locator: Locator): Promise<string[]> {
@@ -125,6 +138,7 @@ async function verifyPreprintSearchCard(
   expect(await preprintSearchPage.searchResults.count()).toBeGreaterThan(0);
 
   const preprintTitle = (await preprintSearchPage.preprintTitle.innerText()).trim();
+  const preprintHref = await preprintSearchPage.preprintTitle.getAttribute('href');
   const searchDateTextFull = await preprintSearchPage.dateCreated.innerText();
   const searchCardDate = searchDateTextFull.split('Date created:')[1].trim();
 
@@ -139,17 +153,20 @@ async function verifyPreprintSearchCard(
     moreCount = match ? parseInt(match[0], 10) : 0;
   }
 
-  const popup = await clickExpectingPopup(page, preprintSearchPage.preprintTitle);
+  const popup = await clickExpectingPopupByHref(page, preprintSearchPage.preprintTitle, preprintHref);
   const preprintDetail = new PreprintPage(popup);
   
   await expect(preprintDetail.identity).toBeVisible();
   const preprintDetailTitle = (await preprintDetail.preprintTitle.innerText()).trim();
 
-  const hasDateOnDetail = await present(preprintDetail.dateCreated);
+  // The file-section date is rendered synchronously alongside `identity` (already
+  // awaited above), so a genuinely-absent field is decided immediately - use
+  // `QUICK_TIMEOUT_MS`, not the default ~25s, to avoid an unnecessary long wait.
+  const hasDateOnDetail = await present(preprintDetail.dateCreated, settings.QUICK_TIMEOUT_MS);
   let preprintDateCreated = '';
   if (hasDateOnDetail) {
     const preprintDateTextFull = await preprintDetail.dateCreated.innerText();
-    preprintDateCreated = preprintDateTextFull.split('Submitted:')[1].trim();
+    preprintDateCreated = preprintDateTextFull.split('Created:')[1].trim();
   }
 
   await present(preprintDetail.allContributors, 15000);
@@ -207,6 +224,7 @@ async function verifyRegistrationSearchCard(
   }
 
   const searchCardTitle = await registrationSearchPage.registrationTitle.innerText();
+  const registrationHref = await registrationSearchPage.registrationTitle.getAttribute('href');
   const dates = (await registrationSearchPage.registrationDates.innerText()).split('|');
   const searchCardRegDate = dates[0].replace('Date registered:', '').trim();
 
@@ -215,17 +233,37 @@ async function verifyRegistrationSearchCard(
     page.locator('osf-resource-card:first-of-type osf-registration-secondary-metadata')
   ).toContainText('URL');
 
-  const searchCardProvider = (await registrationSearchPage.registrationProvider.innerText())
-    .split('Provider:')[1]
-    .trim();
-  const searchCardTemplate = (await registrationSearchPage.registrationTemplate.innerText())
-    .split('Registration Template:')[1]
-    .trim();
+  // Provider/Template aren't guaranteed on every registration (e.g. older
+  // registrations predating the current template system) - guard them like
+  // License/DOI below instead of assuming they're always there.
+  const hasProviderOnCard = await present(
+    registrationSearchPage.registrationProvider,
+    settings.QUICK_TIMEOUT_MS
+  );
+  let searchCardProvider = '';
+  if (hasProviderOnCard) {
+    searchCardProvider = (await registrationSearchPage.registrationProvider.innerText())
+      .split('Provider:')[1]
+      .trim();
+  }
+  const hasTemplateOnCard = await present(
+    registrationSearchPage.registrationTemplate,
+    settings.QUICK_TIMEOUT_MS
+  );
+  let searchCardTemplate = '';
+  if (hasTemplateOnCard) {
+    searchCardTemplate = (await registrationSearchPage.registrationTemplate.innerText())
+      .split('Registration Template:')[1]
+      .trim();
+  }
   const searchCardUrl = (await registrationSearchPage.registrationUrl.innerText())
     .split('URL:')[1]
     .trim();
 
-  const hasLicenseOnCard = await present(registrationSearchPage.registrationLicense);
+  const hasLicenseOnCard = await present(
+    registrationSearchPage.registrationLicense,
+    settings.QUICK_TIMEOUT_MS
+  );
   let searchCardLicense = '';
   if (hasLicenseOnCard) {
     searchCardLicense = (await registrationSearchPage.registrationLicense.innerText())
@@ -233,7 +271,7 @@ async function verifyRegistrationSearchCard(
       .trim();
   }
 
-  const hasDoiOnCard = await present(registrationSearchPage.registrationDoi);
+  const hasDoiOnCard = await present(registrationSearchPage.registrationDoi, settings.QUICK_TIMEOUT_MS);
   let searchCardDoi = '';
   if (hasDoiOnCard) {
     searchCardDoi = (await registrationSearchPage.registrationDoi.innerText())
@@ -241,7 +279,11 @@ async function verifyRegistrationSearchCard(
       .trim();
   }
 
-  const popup = await clickExpectingPopup(page, registrationSearchPage.registrationTitle);
+  const popup = await clickExpectingPopupByHref(
+    page,
+    registrationSearchPage.registrationTitle,
+    registrationHref
+  );
   await expect(popup.locator('osf-registration-blocks-data').first()).toBeVisible();
   await expect(popup.locator('h3:text-is("Registry") ~ p')).not.toHaveText('');
 
@@ -253,8 +295,12 @@ async function verifyRegistrationSearchCard(
   expect(normalizeUiDate(searchCardRegDate).getTime()).toBe(
     normalizeUiDate(registeredDate).getTime()
   );
-  await expect(regDetail.overviewRegistry).toHaveText(searchCardProvider);
-  await expect(regDetail.overviewRegistrationType).toHaveText(searchCardTemplate);
+  if (hasProviderOnCard) {
+    await expect(regDetail.overviewRegistry).toHaveText(searchCardProvider);
+  }
+  if (hasTemplateOnCard) {
+    await expect(regDetail.overviewRegistrationType).toHaveText(searchCardTemplate);
+  }
   expect(popup.url()).toContain(searchCardUrl);
   if (hasLicenseOnCard) {
     await expect(regDetail.overviewLicense).toHaveText(searchCardLicense);
@@ -303,6 +349,7 @@ async function verifyProjectSearchCard(
   }
 
   const projectTitle = await projectSearchPage.projectTitle.innerText();
+  const projectHref = await projectSearchPage.projectTitle.getAttribute('href');
   const dates = (await projectSearchPage.projectDates.innerText()).split('|');
   const searchCardDateCreated = dates[0].replace('Date created:', '').trim();
 
@@ -311,7 +358,14 @@ async function verifyProjectSearchCard(
     page.locator('osf-resource-card:first-of-type osf-project-secondary-metadata')
   ).toContainText('URL');
 
-  const hasLicenseOnCard = await present(projectSearchPage.projectLicense);
+  // `settings.QUICK_TIMEOUT_MS` (not the default `present()` timeout) here: the
+  // accordion's secondary-metadata block is already fully rendered synchronously by
+  // the time we get here (the `toContainText('URL')` wait above already settled it),
+  // so an absent field is decided immediately, not "not yet arrived". With the
+  // default ~25s timeout, three sequential absent fields cost up to 75s and blow
+  // through the suite's 60s per-test timeout before the popup-click assertion below
+  // ever runs, surfacing as an opaque "context closed" failure on that unrelated line.
+  const hasLicenseOnCard = await present(projectSearchPage.projectLicense, settings.QUICK_TIMEOUT_MS);
   let searchCardLicense = '';
   if (hasLicenseOnCard) {
     searchCardLicense = (await projectSearchPage.projectLicense.innerText())
@@ -319,13 +373,13 @@ async function verifyProjectSearchCard(
       .trim();
   }
 
-  const hasDoiOnCard = await present(projectSearchPage.projectDoi);
+  const hasDoiOnCard = await present(projectSearchPage.projectDoi, settings.QUICK_TIMEOUT_MS);
   let searchCardDoi = '';
   if (hasDoiOnCard) {
     searchCardDoi = (await projectSearchPage.projectDoi.innerText()).split('DOI:')[1].trim();
   }
 
-  const hasCollectionOnCard = await present(projectSearchPage.projectCollection);
+  const hasCollectionOnCard = await present(projectSearchPage.projectCollection, settings.QUICK_TIMEOUT_MS);
   let searchCardCollection = '';
   if (hasCollectionOnCard) {
     searchCardCollection = (await projectSearchPage.projectCollection.innerText())
@@ -333,12 +387,21 @@ async function verifyProjectSearchCard(
       .trim();
   }
 
-  const popup = await clickExpectingPopup(page, projectSearchPage.projectTitle);
+  const popup = await clickExpectingPopupByHref(page, projectSearchPage.projectTitle, projectHref);
   await expect(popup.locator('h1.flex.align-items-center')).toBeVisible();
 
   const projectDetail = new ProjectPage(popup);
   const projectDetailTitle = await projectDetail.title.innerText();
   const projectDetailDateCreated = await projectDetail.dateCreated.innerText();
+  // `osf-resource-license` renders a `p-skeleton` placeholder while it fetches the
+  // license name, then swaps it for the real `<div>` - verified live via
+  // `tests/_debug_inspect.spec.ts` per CLAUDE.md. Reading `.innerText()` right away
+  // (as this used to) can win the race against that swap and return "" instead of
+  // the actual license name.
+  await projectDetail.license
+    .locator('p-skeleton')
+    .waitFor({ state: 'detached', timeout: settings.TIMEOUT_MS })
+    .catch(() => undefined);
   const projectDetailLicense = await projectDetail.license.innerText();
 
   await present(popup.locator('h3:text-is("Contributors") ~ div a'), 15000);
@@ -372,6 +435,7 @@ async function verifyFileSearchCard(
   expect(await fileSearchPage.searchResults.count()).toBeGreaterThan(0);
 
   const searchCardTitle = (await fileSearchPage.fileTitle.innerText()).trim();
+  const fileHref = await fileSearchPage.fileTitle.getAttribute('href');
   const fromHref = await fileSearchPage.fromProjectLink.getAttribute('href');
   const parentProjectGuid = (fromHref ?? '').replace(/\/+$/, '').split('/').pop() ?? '';
 
@@ -383,7 +447,7 @@ async function verifyFileSearchCard(
     searchCardFunder = (await fileSearchPage.funderLink.innerText()).trim();
   }
 
-  const popup = await clickExpectingPopup(page, fileSearchPage.fileTitle);
+  const popup = await clickExpectingPopupByHref(page, fileSearchPage.fileTitle, fileHref);
 
   if (popup.url().includes('/preprints/')) {
     test.skip(true, 'File belongs to a preprint — navigates to preprint page, not file detail');

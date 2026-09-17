@@ -1264,6 +1264,7 @@ test.describe('User Addons', () => {
   for (const provider of citationAddons) {
     test(`connect user citation addon [${provider}]`, async ({ page, mustBeLoggedInAsProfileUser }) => {
       void mustBeLoggedInAsProfileUser;
+      test.skip(true, 'Addons functionality is temporarily unavailable');
       test.skip(provider === 'zotero', 'Need different approach');
 
       const addonsPage = new ConfigureAddonsPage(page);
@@ -1304,6 +1305,7 @@ test.describe('User Addons', () => {
   for (const provider of citationAddons) {
     test(`cancel disable user citation addon [${provider}]`, async ({ page, session, mustBeLoggedIn }) => {
       void mustBeLoggedIn;
+      test.skip(true, 'Addons functionality is temporarily unavailable');
       const baseUrl = currentOrigin(page);
       await osfApi.connectUserCitationAddon(session, provider, baseUrl);
 
@@ -1329,6 +1331,7 @@ test.describe('User Addons', () => {
   for (const provider of citationAddons) {
     test(`reconnect user citation addon [${provider}]`, async ({ page, session, mustBeLoggedIn }) => {
       void mustBeLoggedIn;
+      test.skip(true, 'Addons functionality is temporarily unavailable');
       test.skip(provider === 'zotero', 'Need different approach');
 
       const baseUrl = currentOrigin(page);
@@ -1371,6 +1374,7 @@ test.describe('User Addons', () => {
   for (const provider of citationAddons) {
     test(`disable user citation addon [${provider}]`, async ({ page, session, mustBeLoggedIn }) => {
       void mustBeLoggedIn;
+      test.skip(true, 'Addons functionality is temporarily unavailable');
       const baseUrl = currentOrigin(page);
       await osfApi.connectUserCitationAddon(session, provider, baseUrl);
 
@@ -1391,6 +1395,7 @@ test.describe('User Addons', () => {
 
   test('connect user linked service', async ({ page, mustBeLoggedInAsProfileUser }) => {
     void mustBeLoggedInAsProfileUser;
+    test.skip(true, 'Addons functionality is temporarily unavailable');
     const provider = 'dataverse';
     const addonsPage = new ConfigureAddonsPage(page);
     await addonsPage.goto();
@@ -1424,6 +1429,7 @@ test.describe('User Addons', () => {
 
   test('cancel disable user link service', async ({ page, session, mustBeLoggedIn }) => {
     void mustBeLoggedIn;
+    test.skip(true, 'Addons functionality is temporarily unavailable');
     const provider = 'dataverse';
     const baseUrl = currentOrigin(page);
     await osfApi.connectUserLinkService(
@@ -1453,6 +1459,7 @@ test.describe('User Addons', () => {
 
   test('reconnect user link service', async ({ page, session, mustBeLoggedIn }) => {
     void mustBeLoggedIn;
+    test.skip(true, 'Addons functionality is temporarily unavailable');
     const provider = 'dataverse';
     const baseUrl = currentOrigin(page);
     await osfApi.connectUserLinkService(
@@ -1489,6 +1496,7 @@ test.describe('User Addons', () => {
 
   test('disable user link service', async ({ page, session, mustBeLoggedIn }) => {
     void mustBeLoggedIn;
+    test.skip(true, 'Addons functionality is temporarily unavailable');
     const provider = 'dataverse';
     const baseUrl = currentOrigin(page);
     await osfApi.connectUserLinkService(

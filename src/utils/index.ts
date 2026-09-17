@@ -111,3 +111,33 @@ export async function clickExpectingPopup(page: Page, locator: Locator): Promise
   await popup.waitForLoadState();
   return popup;
 }
+
+/**
+ * Search-result card title links are matched by `.first()` on a generic
+ * class-based locator that gets re-evaluated fresh at click time. Card-validation
+ * flows read several fields off the "first" card, then click its title link many
+ * awaits later (accordion expand, `present()` checks, etc.) - if the live search
+ * results re-sort or refresh in between (verified as a real, if infrequent,
+ * occurrence against this suite's shared, non-mocked backend), `.first()` can
+ * silently resolve to a *different* resource by click time, opening the wrong
+ * popup and failing the comparison against the fields already read. Capture the
+ * anchor's `href` right after reading the title, then click by that href
+ * specifically so the same resource that was read is the one that gets clicked.
+ *
+ * `href` alone isn't a unique key, though: a card's own "URL:" secondary-metadata
+ * link (inside the accordion these flows expand before clicking the title) points
+ * at that same resource, so `a[href="..."]` matches both - verified live via
+ * `tests/_debug_inspect.spec.ts` per CLAUDE.md. Scope to the title link's own
+ * `data-test-search-result-card-title-link` marker as well so an href match can
+ * only ever resolve to the actual title anchor.
+ */
+export async function clickExpectingPopupByHref(
+  page: Page,
+  titleLocator: Locator,
+  href: string | null
+): Promise<Page> {
+  const target = href
+    ? page.locator(`a[data-test-search-result-card-title-link][href="${href}"]`).first()
+    : titleLocator;
+  return clickExpectingPopup(page, target);
+}

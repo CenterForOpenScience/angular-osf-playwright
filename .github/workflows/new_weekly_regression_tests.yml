@@ -33,6 +33,7 @@ on:
           - All
           - Login
           - Navbar
+          - Profile
           - Search
           - User
       browser:
@@ -169,6 +170,7 @@ jobs:
           case "${{ needs.set_variables.outputs.service }}" in
             Login) echo "path=tests/login.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Navbar) echo "path=tests/navbar.spec.ts" >> "$GITHUB_OUTPUT" ;;
+            Profile) echo "path=tests/profile.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Search) echo "path=tests/search.spec.ts" >> "$GITHUB_OUTPUT" ;;
             User) echo "path=tests/user.spec.ts" >> "$GITHUB_OUTPUT" ;;
             *) echo "path=tests/" >> "$GITHUB_OUTPUT" ;;
