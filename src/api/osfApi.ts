@@ -636,3 +636,25 @@ export async function updateUserEducation(
     },
   });
 }
+
+export async function getNodeIdByTitle(
+  session: OsfSession,
+  title: string
+): Promise<string | undefined> {
+  try {
+    const url = `/v2/nodes/?filter[title]=${encodeURIComponent(title)}`;
+
+    const response = await session.get(url);
+
+    const data = response.data;
+
+    if (data && data.length > 0) {
+      return data[0].id;
+    }
+
+    return undefined;
+  } catch (error) {
+    console.error(`Failed to get node by title "${title}":`, error);
+    throw error;
+  }
+}

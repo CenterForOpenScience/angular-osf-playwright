@@ -21,16 +21,23 @@ export interface ProjectPageStub {
   guid: string;
 }
 
-type Fixtures = {
+type WorkerFixtures = {
   session: OsfSession;
   checkCredentials: void;
-  fake: Faker;
   waffledPages: void;
+};
+
+type Fixtures = {
+  //session: OsfSession;
+  //checkCredentials: void;
+  fake: Faker;
+  //waffledPages: void;
   hideFooterSlideIn: void;
   defaultLogout: void;
   mustBeLoggedIn: void;
   userLoggedIn: boolean;
   logInIfNotAlready: void;
+  mustBeLoggedInAsUserOne: void;
   mustBeLoggedInAsUserTwo: void;
   mustBeLoggedInAsProfileUser: void;
   loginAsUserWithRegistrations: void;
@@ -53,6 +60,7 @@ type Fixtures = {
   defaultProjectWithTags: osfApi.OsfProject;
   publicLinkProject: osfApi.OsfProject;
   defaultProjectWithAllMetadata: osfApi.OsfProject;
+  defaultAddonsProject: osfApi.OsfProject;
 };
 
 function getSessionCookieName(): string {
@@ -62,12 +70,12 @@ function getSessionCookieName(): string {
   return `osf_${match ? match[1] : settings.DOMAIN}`;
 }
 
-export const test = base.extend<Fixtures>({
-  session: async ({}, use) => {
+export const test = base.extend<Fixtures, WorkerFixtures>({
+  session: [async ({}, use) => {
     const session = await createSession();
     await use(session);
     await session.dispose();
-  },
+  }, { scope: 'worker' }],
 
   // Port of `check_credentials` (autouse). `pytest.exit` aborted the whole session on
   // failure; here we fail fast with a clear error on the current test instead.
@@ -80,8 +88,9 @@ export const test = base.extend<Fixtures>({
       }
       await use();
     },
-    { auto: true },
+    { auto: true, scope: 'worker' },
   ],
+
 
   fake: async ({}, use) => {
     await use(faker);
@@ -92,7 +101,7 @@ export const test = base.extend<Fixtures>({
       settings.runtime.emberPages = await osfApi.waffledPages(session);
       await use();
     },
-    { auto: true },
+    { auto: true, scope: 'worker' },
   ],
 
   hideFooterSlideIn: async ({ page }, use) => {
@@ -124,6 +133,12 @@ export const test = base.extend<Fixtures>({
       await safeLogin(page);
       await acceptCookies(page);
     }
+    await use();
+  },
+
+  mustBeLoggedInAsUserOne: async ({ page }, use) => {
+    await safeLogin(page, settings.USER_ONE, settings.USER_ONE_PASSWORD);
+    await acceptCookies(page);
     await use();
   },
 
@@ -353,6 +368,29 @@ export const test = base.extend<Fixtures>({
     await osfApi.updateProjectWithTags(session, project.id);
     await use(project);
     await project.delete();
+  },
+
+  defaultAddonsProject: async ({ session }, use) => {
+    /**
+     * Creates a new project through the api and returns it. Deletes the project at the end
+     * of the test run. If PREFERRED_NODE is set, returns the APIDetail of preferred node.
+     */
+    let node: osfApi.OsfProject;
+
+    if (settings.PREFERRED_NODE) {
+      node = await osfApi.getNode(session);
+    } else {
+      const nodeId = await osfApi.getNodeIdByTitle(session, settings.ADDONS_TEST_PROJECT_TITLE);
+      if (!nodeId) {
+        throw new Error('Could not find node with title "OSF Test Project for Addons"');
+      }
+      node = await osfApi.getNode(session, nodeId);
+    }
+
+    await use(node);
+    // teardown — the Python docstring says "Deletes the project at the end of the test run,"
+    // but the code shown doesn't actually perform a delete. Add it here if that's expected:
+    // await osfApi.deleteNode(session, node.id);
   },
 });
 

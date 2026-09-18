@@ -135,6 +135,7 @@ export const ZOTERO_USER = env('ZOTERO_USER');
 export const ZOTERO_PASSWORD = env('ZOTERO_PASSWORD');
 export const DATAVERSE_URL = env('DATAVERSE_URL');
 export const DATAVERSE_API_TOKEN = env('DATAVERSE_API_TOKEN');
+export const ADDONS_TEST_PROJECT_TITLE = 'OSF Test Project for Addons'; 
 
 // Populated at runtime by the `waffledPages` fixture (see src/fixtures/index.ts),
 // mirroring `settings.EMBER_PAGES` being set dynamically in the old conftest.py.
