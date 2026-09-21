@@ -27,6 +27,7 @@ type Fixtures = {
   fake: Faker;
   waffledPages: void;
   hideFooterSlideIn: void;
+  hideMetadataFeaturePopover: void;
   defaultLogout: void;
   mustBeLoggedIn: void;
   userLoggedIn: boolean;
@@ -97,6 +98,18 @@ export const test = base.extend<Fixtures>({
 
   hideFooterSlideIn: async ({ page }, use) => {
     await page.evaluate(() => window.localStorage.setItem('slide', '0'));
+    await use();
+  },
+
+  /**
+   * Port of `BaseSubmittedRegistrationPage.__init__`'s cookie set - prevents the "New
+   * Feature" popover from appearing on submitted registration pages, where it can
+   * overlay and intercept clicks on other elements (e.g. the side-nav links).
+   */
+  hideMetadataFeaturePopover: async ({ page }, use) => {
+    await page
+      .context()
+      .addCookies([{ name: 'metadataFeaturePopover', value: '1', url: settings.OSF_HOME }]);
     await use();
   },
 

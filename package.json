@@ -12,6 +12,7 @@
     "test:all-browsers": "playwright test --project=chromium --project=firefox --project=edge --project=webkit",
     "test:login": "playwright test tests/login.spec.ts",
     "test:user": "playwright test tests/user.spec.ts",
+    "test:registration-sidebar": "playwright test tests/registrationSidebar.spec.ts",
     "test:test": "cross-env TEST_ENV=test playwright test",
     "test:test2": "cross-env TEST_ENV=test2 playwright test",
     "test:test3": "cross-env TEST_ENV=test3 playwright test",
