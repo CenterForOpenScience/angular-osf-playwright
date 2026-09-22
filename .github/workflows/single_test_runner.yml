@@ -27,6 +27,7 @@ on:
           - login.spec.ts
           - navbar.spec.ts
           - profile.spec.ts
+          - registrationSidebar.spec.ts
           - search.spec.ts
           - user.spec.ts
       browser:
