@@ -17,15 +17,7 @@ import {
   registrationUrl,
 } from '../src/pages/RegistrationPage';
 
-/**
- * Port of `tests/test_registration_sidebar.py`.
- *
- * `hideMetadataFeaturePopover` (see `src/fixtures/index.ts`) is used throughout -
- * port of `BaseSubmittedRegistrationPage.__init__`'s cookie set, which otherwise lets
- * the "New Feature" popover overlay and intercept clicks on registration pages (this
- * is exactly the `ElementClickIntercepted` failure the original Selenium suite hit on
- * `test_metadata_link`).
- */
+
 const test = base.extend<{}>({});
 
 const resourceTypes = ['Data', 'Analytic Code', 'Materials', 'Papers', 'Supplements'];
@@ -337,13 +329,14 @@ test.describe('Registration Contributors', { tag: '@core' }, () => {
   });
 
   test('reorder contributors', async ({ page }) => {
-    const contributorName = 'OSF Runscope Admin';
-
     await page.goto(registrationUrl(guid, 'contributors'));
     const contributorsPage = new RegistrationContributorsPage(page);
     await contributorsPage.verify();
 
-    const sourceOrder = await contributorsPage.getOrderOfContributor(contributorName);
+    const contributorsList = (await contributorsPage.getContributorsList()).map((name) => name.trim());
+    expect(contributorsList.length, 'reorder needs at least 3 contributors').toBeGreaterThan(2);
+    const sourceOrder = contributorsList.length - 1;
+    const contributorName = contributorsList[sourceOrder];
     const targetOrder = 1;
     const rows = contributorsPage.tableRows;
     const sourceHandle = rows.nth(sourceOrder).locator('div.p-datatable-reorderable-row-handle');
@@ -375,9 +368,6 @@ test.describe('Registration Contributors', { tag: '@core' }, () => {
     await contributorsPage.removeButton.click();
     await contributorsPage.clickOnButton('Remove');
 
-    // Reload to an unfiltered view - the search box still filters on the now-removed
-    // name, so the filtered table would stay empty forever (getContributorsList waits
-    // for a contributor link to appear).
     await page.reload();
     await contributorsPage.verify();
     const contributorsListAfter = await contributorsPage.getContributorsList();
@@ -398,9 +388,8 @@ test.describe('Registration View-Only Links', { tag: '@core' }, () => {
   });
 
   test('anonymous registration view only link', async ({ page }) => {
-    await page.goto(registrationUrl(guid, 'contributors'));
     const contributorsPage = new RegistrationContributorsPage(page);
-    await contributorsPage.verify();
+    await contributorsPage.gotoAndWaitForVolList(guid);
 
     const volName = `Selenium_AVOL_${new Date().toISOString()}`;
     await contributorsPage.volSection.scrollIntoViewIfNeeded();
@@ -408,11 +397,7 @@ test.describe('Registration View-Only Links', { tag: '@core' }, () => {
     await contributorsPage.createVolModal.linkNameInput.fill(volName);
     await contributorsPage.createVolModal.clickOnButton('Create');
 
-    // The table re-fetches after creation - reading `linkName` immediately can race
-    // it and see the pre-creation (empty) state.
-    await expect(contributorsPage.linkName).not.toBeEmpty();
-    const newVolName = (await contributorsPage.linkName.innerText()).trim();
-    expect(newVolName).toBe(volName);
+    await expect(contributorsPage.linkName).toHaveText(volName);
     const volUrl = await contributorsPage.volLinkFor(volName).getAttribute('id');
     if (!volUrl) throw new Error('VOL URL not found.');
 
@@ -471,6 +456,7 @@ test.describe('Registration View-Only Links', { tag: '@core' }, () => {
     await contributorsPage.verify();
 
     await contributorsPage.volSection.scrollIntoViewIfNeeded();
+    await expect(contributorsPage.linkName).not.toBeEmpty();
     const volName = (await contributorsPage.linkName.innerText()).trim();
     await contributorsPage.volDeleteButtonFor(volName).click();
     await contributorsPage.deleteVolModal.clickOnButton('Delete');
@@ -479,9 +465,8 @@ test.describe('Registration View-Only Links', { tag: '@core' }, () => {
   });
 
   test('non anonymous registration view only link', async ({ page }) => {
-    await page.goto(registrationUrl(guid, 'contributors'));
     const contributorsPage = new RegistrationContributorsPage(page);
-    await contributorsPage.verify();
+    await contributorsPage.gotoAndWaitForVolList(guid);
 
     const volName = `Selenium_VOL_${new Date().toISOString()}`;
     await contributorsPage.volSection.scrollIntoViewIfNeeded();
@@ -490,9 +475,7 @@ test.describe('Registration View-Only Links', { tag: '@core' }, () => {
     await contributorsPage.createVolModal.selectAnonymousCheckbox();
     await contributorsPage.createVolModal.clickOnButton('Create');
 
-    await expect(contributorsPage.linkName).not.toBeEmpty();
-    const newVolName = (await contributorsPage.linkName.innerText()).trim();
-    expect(newVolName).toBe(volName);
+    await expect(contributorsPage.linkName).toHaveText(volName);
     const volUrl = await contributorsPage.volLinkFor(volName).getAttribute('id');
     if (!volUrl) throw new Error('VOL URL not found.');
 
@@ -515,6 +498,8 @@ test.describe('Registration View-Only Links', { tag: '@core' }, () => {
     await contributorsPage.verify();
 
     await contributorsPage.volSection.scrollIntoViewIfNeeded();
+
+    await expect(contributorsPage.linkName).not.toBeEmpty();
     const volName = (await contributorsPage.linkName.innerText()).trim();
     await contributorsPage.volDeleteButtonFor(volName).click();
     await contributorsPage.deleteVolModal.clickOnButton('Delete');

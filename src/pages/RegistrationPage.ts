@@ -358,6 +358,23 @@ export class RegistrationContributorsPage extends BasePage {
   }
 
   /**
+   * Navigates to the contributors page and waits for the VOL list's initial GET to
+   * finish. Verified live via `tests/_debug_inspect.spec.ts`: if a VOL is created
+   * (POST) while that GET is still in flight, the app drops the new link from the
+   * table until the next reload, so callers that create a VOL must wait for this first.
+   */
+  async gotoAndWaitForVolList(guid: string): Promise<void> {
+    await Promise.all([
+      this.page.waitForResponse(
+        (response) =>
+          /\/view_only_links\/(\?|$)/.test(response.url()) && response.request().method() === 'GET'
+      ),
+      this.page.goto(registrationUrl(guid, 'contributors')),
+    ]);
+    await this.verify();
+  }
+
+  /**
    * The contributors table renders asynchronously after `osf-contributors` (this
    * page's `identity`) mounts - reading rows right after `verify()` can race it and
    * see zero rows (same pattern as `ConnectAddonModal.getRowCount` in
