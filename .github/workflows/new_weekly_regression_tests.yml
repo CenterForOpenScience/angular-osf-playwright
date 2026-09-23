@@ -34,6 +34,7 @@ on:
           - Login
           - Navbar
           - Profile
+          - RegistrationSidebar
           - Search
           - User
       browser:
@@ -171,6 +172,7 @@ jobs:
             Login) echo "path=tests/login.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Navbar) echo "path=tests/navbar.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Profile) echo "path=tests/profile.spec.ts" >> "$GITHUB_OUTPUT" ;;
+            RegistrationSidebar) echo "path=tests/registrationSidebar.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Search) echo "path=tests/search.spec.ts" >> "$GITHUB_OUTPUT" ;;
             User) echo "path=tests/user.spec.ts" >> "$GITHUB_OUTPUT" ;;
             *) echo "path=tests/" >> "$GITHUB_OUTPUT" ;;

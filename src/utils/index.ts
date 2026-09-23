@@ -85,6 +85,43 @@ export async function waitForOverlayToDisappear(page: Page, timeout = 10000): Pr
     .catch(() => undefined);
 }
 
+/**
+ * Port of `normalize_api_date` from utils.py - truncates an API ISO date string to
+ * minute precision, keeping the literal Y/M/D/H/M digits as given (Python's
+ * `strftime` on the parsed value never re-applies a timezone conversion).
+ */
+export function normalizeApiDate(apiDate: string): string {
+  const match = apiDate.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!match) {
+    throw new Error(`Unrecognized API date format: ${apiDate}`);
+  }
+  const [, year, month, day, hour, minute] = match;
+  return `${year}-${month}-${day}T${hour}:${minute}`;
+}
+
+/**
+ * Port of `normalize_ui_date` from utils.py. The Python original assumed the UI always
+ * renders in a fixed `America/New_York` wall clock and converted from that - verified
+ * live (via `_debug_inspect.spec.ts` per CLAUDE.md) that the current Angular app
+ * instead just formats dates in the browser's own local timezone, which Playwright
+ * inherits from the runner's system timezone (`playwright.config.ts` sets no
+ * `timezoneId` override, so browser and Node process agree). That makes this much
+ * simpler than the Python version: `new Date(uiDate)` already parses the displayed
+ * string as local time, so its `getTime()` is the correct absolute instant with no
+ * further timezone conversion needed - just read it back out in UTC and truncate to
+ * minute precision, matching `normalizeApiDate`'s raw (UTC) API value.
+ */
+export function normalizeUiDate(uiDate: string): string {
+  const parsed = new Date(uiDate);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`Unrecognized UI date format: ${uiDate}`);
+  }
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${parsed.getUTCFullYear()}-${pad(parsed.getUTCMonth() + 1)}-${pad(
+    parsed.getUTCDate()
+  )}T${pad(parsed.getUTCHours())}:${pad(parsed.getUTCMinutes())}`;
+}
+
 /** Port of `page_refresh_with_clean_storages` from utils.py. */
 export async function pageRefreshWithCleanStorages(page: Page): Promise<void> {
   await page.evaluate(() => {

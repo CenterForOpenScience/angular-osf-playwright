@@ -1,5 +1,5 @@
 import * as settings from '../../config/settings';
-import { createAddonSession, OsfApiError, OsfSession } from './session';
+import { createAddonSession, createSession, OsfApiError, OsfSession } from './session';
 
 /**
  * Port of the subset of `api/osf_api.py` that `tests/conftest.py`'s fixtures, plus
@@ -668,4 +668,183 @@ export async function updateUserSocial(session: OsfSession, userName: string): P
 export async function getUserDetails(session: OsfSession, userName: string): Promise<any> {
   const userGuid = await getUserGuid(session, userName);
   return session.get(`/v2/users/${userGuid}/`);
+}
+
+/**
+ * Below: functions ported for `tests/test_registration_sidebar.py`. Several of the
+ * Python originals open their own `client.Session(auth=(REGISTRATIONS_USER, ...))`
+ * rather than taking the caller's session - ported the same way via a dedicated
+ * `registrationsSession()` helper, since the fixture registrations these operate on
+ * are only writable by that user.
+ */
+
+let cachedRegistrationsSession: Promise<OsfSession> | undefined;
+
+/** One shared REGISTRATIONS_USER-authenticated session, lazily created and reused. */
+function registrationsSession(): Promise<OsfSession> {
+  if (!cachedRegistrationsSession) {
+    cachedRegistrationsSession = createSession(
+      settings.REGISTRATIONS_USER,
+      settings.REGISTRATIONS_USER_PASSWORD
+    );
+  }
+  return cachedRegistrationsSession;
+}
+
+/** Port of `get_most_recent_registration_node_id`. */
+export async function getMostRecentRegistrationNodeId(
+  session: OsfSession
+): Promise<string | null> {
+  const data = await session.get('/v2/registrations/');
+  const match = (data.data as any[]).find(
+    (registration) =>
+      registration.attributes.public &&
+      registration.attributes.revision_state === 'approved' &&
+      !registration.attributes.withdrawn
+  );
+  return match?.id ?? null;
+}
+
+/** Port of `get_registration_by_title`. */
+export async function getRegistrationByTitle(title: string): Promise<string | null> {
+  const session = await registrationsSession();
+  const data = await session.get('/v2/registrations/', { 'filter[title]': title });
+  return data.data?.[0]?.id ?? null;
+}
+
+/** Port of `get_registration_resource_id` - the most recent resource added today. */
+export async function getRegistrationResourceId(
+  registrationId: string
+): Promise<string | null> {
+  const session = await registrationsSession();
+  const data = await session.get(`/v2/registrations/${registrationId}/resources/`);
+  const today = new Date().toISOString().slice(0, 10);
+  const match = (data.data as any[])?.find((resource: any) =>
+    resource.attributes.date_created.includes(today)
+  );
+  return match?.id ?? null;
+}
+
+/** Port of `delete_registration_resource`. */
+export async function deleteRegistrationResource(registrationId: string): Promise<void> {
+  const session = await registrationsSession();
+  const resourceId = await getRegistrationResourceId(registrationId);
+  await session.delete(`/v2/resources/${resourceId}`);
+}
+
+/** Port of `create_registration_resource`. */
+export async function createRegistrationResource(
+  registrationGuid: string,
+  resourceType: string
+): Promise<void> {
+  const session = await registrationsSession();
+  const existingResourceId = await getRegistrationResourceId(registrationGuid);
+  if (existingResourceId) {
+    await deleteRegistrationResource(registrationGuid);
+  }
+
+  const data = await session.post('/v2/resources/', {
+    data: {
+      relationships: {
+        registration: { data: { type: 'registrations', id: registrationGuid } },
+      },
+      type: 'resources',
+    },
+  });
+  const resourceId = data.data.id;
+  const apiResourceType = resourceType === 'Analytic Code' ? 'analytic_code' : resourceType;
+
+  await session.patch(`v2/resources/${resourceId}/`, {
+    data: {
+      id: resourceId,
+      attributes: {
+        pid: 'https://doi.org/10.17605',
+        resource_type: apiResourceType,
+        finalized: true,
+      },
+      type: 'resources',
+    },
+  });
+}
+
+/** Port of `delete_registration_contributor`. */
+export async function deleteRegistrationContributor(
+  registrationGuid: string,
+  userName: string
+): Promise<void> {
+  const session = await registrationsSession();
+  const data = await session.get(`/v2/registrations/${registrationGuid}/contributors/`);
+  const match = (data.data as any[]).find((contributor: any) =>
+    contributor.embeds.users.data.attributes.full_name.includes(userName)
+  );
+  if (match) {
+    await session.delete(`/v2/registrations/${registrationGuid}/contributors/${match.embeds.users.data.id}/`);
+  }
+}
+
+/** Port of `get_registration_details`. */
+export async function getRegistrationDetails(
+  session: OsfSession,
+  registrationGuid: string
+): Promise<any> {
+  const data = await session.get(`/v2/registrations/${registrationGuid}/`);
+  return data?.data ?? null;
+}
+
+/** Port of `get_registration_license_name`. */
+export async function getRegistrationLicenseName(
+  session: OsfSession,
+  registrationGuid: string
+): Promise<string> {
+  const data = await session.get(`/v2/registrations/${registrationGuid}/`);
+  const licenseId = data.data.relationships.license.data.id;
+  const licenseData = await session.get(`v2/licenses/${licenseId}/`);
+  return licenseData.data.attributes.name;
+}
+
+/** Port of `get_registration_institutions`. */
+export async function getRegistrationInstitutions(
+  session: OsfSession,
+  registrationGuid: string
+): Promise<string[]> {
+  const data = await session.get(`/v2/registrations/${registrationGuid}/institutions/`);
+  return (data.data as any[]).map((institution: any) => institution.id);
+}
+
+/** Port of `get_registration_provider`. */
+export async function getRegistrationProvider(
+  session: OsfSession,
+  registrationGuid: string
+): Promise<string> {
+  const data = await session.get(`/v2/registrations/${registrationGuid}/`);
+  const providerId = data.data.relationships.provider.data.id;
+  const providerData = await session.get(`/v2/providers/registrations/${providerId}/`);
+  return providerData.data.attributes.name;
+}
+
+/** Port of `get_registration_subjects`. */
+export async function getRegistrationSubjects(
+  session: OsfSession,
+  registrationGuid: string
+): Promise<string[]> {
+  const data = await session.get(`/v2/registrations/${registrationGuid}/subjects/`);
+  return (data.data as any[]).map((subject: any) => subject.attributes.text);
+}
+
+/** Port of `get_registration_contributors`. */
+export async function getRegistrationContributors(
+  session: OsfSession,
+  registrationGuid: string
+): Promise<string[]> {
+  const data = await session.get(`/v2/registrations/${registrationGuid}/contributors/`);
+  return (data.data as any[]).map(
+    (contributor: any) => contributor.embeds.users.data.attributes.full_name
+  );
+}
+
+/** Port of `get_registration_vol_key`. */
+export async function getRegistrationVolKey(registrationGuid: string): Promise<string | null> {
+  const session = await registrationsSession();
+  const data = await session.get(`/v2/registrations/${registrationGuid}/view_only_links/`);
+  return data.data?.[0]?.id ?? null;
 }

@@ -103,6 +103,7 @@ tests/
   profile.spec.ts       # port of tests/test_profile.py
   search.spec.ts        # port of tests/test_search.py
   navbar.spec.ts        # port of tests/test_navbar.py
+  registrationSidebar.spec.ts  # port of tests/test_registration_sidebar.py
 ```
 
 ## Migration status
@@ -120,7 +121,7 @@ tick it in **both** files.
 | 5 | Navbar | `tests/test_navbar.py` | `tests/navbar.spec.ts` | [x] Migrated |
 | 6 | Dashboard | `tests/test_dashboard.py` | — | [ ] Not migrated |
 | 7 | Collections | `tests/test_collections.py` | — | [ ] Not migrated |
-| 8 | Registration sidebar | `tests/test_registration_sidebar.py` | — | [ ] Not migrated |
+| 8 | Registration sidebar | `tests/test_registration_sidebar.py` | `tests/registrationSidebar.spec.ts` | [x] Migrated |
 | 9 | Preprints | `tests/test_preprints.py` | — | [ ] Not migrated |
 | 10 | Metadata | `tests/test_metadata.py` | — | [ ] Not migrated |
 | 11 | Institutions | `tests/test_institutions.py` | — | [ ] Not migrated |
@@ -131,7 +132,7 @@ tick it in **both** files.
 | 16 | Registration user permissions | `tests/test_registration_user_permissions.py` | — | [ ] Not migrated |
 | 17 | Registries | `tests/test_registries.py` | — | [ ] Not migrated |
 
-Progress: **5 / 17** sections migrated.
+Progress: **6 / 17** sections migrated.
 
 ## Notable differences from the Python suite
 
@@ -185,5 +186,27 @@ Progress: **5 / 17** sections migrated.
   `search.spec.ts`'s `verify*SearchCard` functions) are likewise duplicated locally
   in `tests/profile.spec.ts` rather than imported across spec files, matching how
   the Python source itself duplicates them per test module.
+- **Registration sidebar**: `RegistrationPage.ts` (already used by `search.spec.ts` as
+  a scoped port of the overview page) is extended in place with the rest of
+  `pages/registries.py`/`components/registration.py` this section needs, rather than
+  duplicated into a new type - `search.spec.ts`'s existing fields are untouched.
+  Metadata/Files/Components/Links/Analytics page objects stay identity-only, since
+  `test_registration_sidebar.py` only ever navigates to them and checks `identity` -
+  their fuller Python page objects (metadata editing, file browsing, etc.) are out of
+  scope here. Two Python dead-code bugs were fixed rather than carried over (matching
+  the Section 3 precedent above): `get_authors_list`/`get_affiliations_list` `return`
+  from inside their loop in Python, so they only ever yielded the first item -
+  `getAuthorsList`/`getAffiliationsList` here return the full list; and
+  `RegistrationContributorsPage`'s Python `identity` locator passes an XPath string to
+  a CSS `By.CSS_SELECTOR` (never actually matches) - ported as `osf-contributors`
+  instead. `test_delete_resource`'s Python assertion also checked for a *lowercased*
+  `<h2>` that could never match real markup (an always-true assertion) - ported as a
+  real check against the actual (capitalized) resource-type heading. Several
+  since-fixed timing races surfaced only under real load and are documented inline
+  where fixed: the contributors table, VOL table, and overview license/authors sections
+  all render asynchronously after their page's `identity` mounts; the contributors
+  search box filters with a debounce (up to ~2s) rather than instantly; and VOL/resource
+  delete confirmations are PrimeNG's `p-confirmdialog` (`.p-confirmdialog-accept-button`),
+  not the `p-dialog` the Add Contributor/Create VOL modals use.
 
 ## Next steps
