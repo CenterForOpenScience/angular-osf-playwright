@@ -22,7 +22,7 @@ const test = base.extend<{
       settings.OSF_HOME,
       'osfstorage' // or whatever default/appropriate addon provider
     );
-    await filesPage.goto();
+    await filesPage.gotoGuid();
     await use(filesPage);
   },
 

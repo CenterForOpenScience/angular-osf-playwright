@@ -30,7 +30,7 @@ export abstract class GuidBasePage extends BasePage {
   }
 
   // guid-base-page.ts
-  async goto(): Promise<this> {
+  async gotoGuid(): Promise<this> {
     await this.page.goto(this.url);
     try {
       await this.page.getByText('Accept cookies').click({ timeout: 3000 });
