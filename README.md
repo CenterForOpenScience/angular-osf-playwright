@@ -104,6 +104,7 @@ tests/
   search.spec.ts        # port of tests/test_search.py
   navbar.spec.ts        # port of tests/test_navbar.py
   registrationSidebar.spec.ts  # port of tests/test_registration_sidebar.py
+  registrationMetadata.spec.ts # port of tests/test_registration_metadata.py
 ```
 
 ## Migration status
@@ -123,7 +124,7 @@ tick it in **both** files.
 | 7 | Collections | `tests/test_collections.py` | — | [ ] Not migrated |
 | 8 | Registration sidebar | `tests/test_registration_sidebar.py` | `tests/registrationSidebar.spec.ts` | [x] Migrated |
 | 9 | Preprints | `tests/test_preprints.py` | — | [ ] Not migrated |
-| 10 | Metadata | `tests/test_metadata.py` | — | [ ] Not migrated |
+| 10 | Metadata | `tests/test_registration_metadata.py` | `tests/registrationMetadata.spec.ts` | [x] Migrated |
 | 11 | Institutions | `tests/test_institutions.py` | — | [ ] Not migrated |
 | 12 | My projects | `tests/test_my_projects.py` | — | [ ] Not migrated |
 | 13 | My registrations | `tests/test_my_registrations.py` | — | [ ] Not migrated |
@@ -132,7 +133,7 @@ tick it in **both** files.
 | 16 | Registration user permissions | `tests/test_registration_user_permissions.py` | — | [ ] Not migrated |
 | 17 | Registries | `tests/test_registries.py` | — | [ ] Not migrated |
 
-Progress: **6 / 17** sections migrated.
+Progress: **7 / 17** sections migrated.
 
 ## Notable differences from the Python suite
 
@@ -208,5 +209,33 @@ Progress: **6 / 17** sections migrated.
   search box filters with a debounce (up to ~2s) rather than instantly; and VOL/resource
   delete confirmations are PrimeNG's `p-confirmdialog` (`.p-confirmdialog-accept-button`),
   not the `p-dialog` the Add Contributor/Create VOL modals use.
+- **Registration metadata**: ports `TestRegistrationMetadata` (14 tests) - the only
+  live class in `test_registration_metadata.py`; `TestFilesMetadata`/`TestProjectMetadata`
+  are fully commented out in the Python source and weren't ported. The metadata page's
+  cards are each their own Angular component (`osf-metadata-title`,
+  `osf-metadata-contributors`, ...) and every Edit opens a named `p-dialog`, so
+  `RegistrationMetadataPage` scopes by those instead of the Python `//div[h2[...]]`
+  XPaths. The add/remove pairs (contributors, affiliations, subjects, tags) still rely on
+  file order against one shared fixture registration, like the Python class. Changes
+  from the Python source, all verified live:
+  - The Edit contributors dialog's search box doesn't filter the table, so Python's
+    `user_permission`/`remove_button` silently acted on the *first* row (the admin
+    owner). Rows are now located by contributor name.
+  - `remove contributors` only checked the Contributors card, which lists bibliographic
+    contributors only - and the previous test already made that user non-bibliographic,
+    so the assertion was always true. It now also checks the API contributor list.
+  - The API refuses to leave a registration with zero subjects (400, "Registration must
+    have at least one subject to be registered"), so with `Business` as the fixture's
+    only subject the add/remove subject pair was stuck. `add top level subject` now
+    resets the subjects to `Engineering` via the API first
+    (`osfApi.updateRegistrationSubjects`).
+  - The Resource language select's filter box always shows "No results found"
+    (`filterBy="label"` on options that only have `name`/`code`), which looks like an
+    app bug. The test scrolls the virtual-scrolled list to the option instead
+    (`selectFromVirtualScrollList`).
+  - Removing the only funder entry closes the Funding dialog - Python's reopen step is
+    kept, with an explicit wait for the dialog to close first.
+  - Subjects/tags/affiliations save as you toggle them, so the tests wait for that save
+    request before reloading instead of reloading straight away.
 
 ## Next steps

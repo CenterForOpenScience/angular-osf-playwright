@@ -7,6 +7,9 @@ import {
   AddContributorModal,
   CreateVolModal,
   DeleteVolModal,
+  EditAffiliationsModal,
+  EditContributorsModal,
+  EditLicenseModal,
 } from './components/RegistrationModals';
 
 /**
@@ -15,11 +18,11 @@ import {
  * Registration Overview page; the rest of the file is its side-nav siblings
  * (Metadata/Files/Resources/Wiki/Components/Links/Analytics/Contributors).
  *
- * Only Overview, Resources, Wiki and Contributors carry real behavior here -
- * Metadata/Files/Components/Links/Analytics are only ever navigated to and checked
- * for `identity` by the side-nav smoke tests in `tests/test_registration_sidebar.py`,
- * so those page objects stay identity-only (their fuller Python page objects cover
- * metadata editing, file browsing, etc. - out of scope for this file).
+ * Overview, Metadata, Resources, Wiki and Contributors carry real behavior here
+ * (Metadata for `tests/test_registration_metadata.py`) - Files/Components/Links/
+ * Analytics are only ever navigated to and checked for `identity` by the side-nav
+ * smoke tests in `tests/test_registration_sidebar.py`, so those page objects stay
+ * identity-only.
  */
 
 /** Port of `BaseSubmittedRegistrationPage.url`. */
@@ -189,9 +192,282 @@ export class RegistrationPage extends BasePage {
   }
 }
 
+/**
+ * Port of `pages/registries.py`'s `RegistrationMetadataPage` (plus its
+ * `components/registration.py` modals) for `tests/test_registration_metadata.py`.
+ * Every metadata card is its own Angular component (`osf-metadata-title`,
+ * `osf-metadata-contributors`, ...) - those are used as section roots instead of
+ * the Python `//div[h2[text()="..."]]` XPaths, which also dodges the Resource
+ * Information heading's embedded info-button text. Each "Edit" opens a named
+ * `p-dialog` (`Edit Title`, `Edit Resource Information`, ...).
+ */
+const METADATA_SECTIONS: Record<string, string> = {
+  Title: 'osf-metadata-title',
+  Description: 'osf-metadata-description',
+  Contributors: 'osf-metadata-contributors',
+  'Resource Information': 'osf-metadata-resource-information',
+  'Funding/Support Information': 'osf-metadata-funding',
+  'Affiliated Institutions': 'osf-metadata-affiliated-institutions',
+  License: 'osf-metadata-license',
+  Tags: 'osf-metadata-tags',
+  Subjects: 'osf-metadata-subjects',
+};
+
 export class RegistrationMetadataPage extends BasePage {
   get identity(): Locator {
     return this.page.locator('osf-metadata');
+  }
+
+  section(title: string): Locator {
+    const tag = METADATA_SECTIONS[title];
+    if (!tag) throw new Error(`Unknown metadata section: ${title}`);
+    return this.page.locator(tag);
+  }
+
+  /** Port of `click_on_edit` / `click_on_metadata_section_edit_button`. */
+  async clickOnEdit(title: string): Promise<void> {
+    await this.section(title).getByRole('button', { name: 'Edit', exact: true }).click();
+  }
+
+  dialog(name: string): Locator {
+    return this.page.getByRole('dialog', { name, exact: true });
+  }
+
+  /** Clicks a button inside whichever dialog(s) are open, falling back to the page. */
+  async clickOnButton(buttonName: string): Promise<void> {
+    await this.page
+      .locator('[role="dialog"][aria-modal="true"]')
+      .getByRole('button', { name: buttonName, exact: true })
+      .click();
+  }
+
+  // Title / description
+  get metadataTitle(): Locator {
+    return this.page.locator('[data-test-display-node-title]');
+  }
+
+  get metadataDescription(): Locator {
+    return this.page.locator('[data-test-display-node-description]');
+  }
+
+  get titleInput(): Locator {
+    return this.dialog('Edit Title').getByPlaceholder('Edit title here');
+  }
+
+  get saveMetadataTitleButton(): Locator {
+    return this.dialog('Edit Title').getByRole('button', { name: 'Save', exact: true });
+  }
+
+  get descriptionInput(): Locator {
+    return this.dialog('Edit Description').getByPlaceholder('Edit description here');
+  }
+
+  get saveMetadataDescriptionButton(): Locator {
+    return this.dialog('Edit Description').getByRole('button', { name: 'Save', exact: true });
+  }
+
+  // Contributors
+  /** Contributor links on the Contributors card - only bibliographic contributors are listed there. */
+  async getContributorsList(): Promise<string[]> {
+    const names = this.section('Contributors').locator('[data-test-contributor-name]');
+    await names.first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined);
+    return (await names.allInnerTexts()).map((name) => name.replace(/,/g, '').trim());
+  }
+
+  /** Port of `get_contributor_name` - the contributor's link on the Contributors card. */
+  getContributorName(userName: string): Locator {
+    return this.section('Contributors').getByRole('link', { name: userName, exact: true });
+  }
+
+  /** Port of `get_contributor_name_modal_window` - the contributor's row link in the Edit contributors dialog. */
+  getContributorNameModalWindow(userName: string): Locator {
+    return this.editContributorsModal.root.getByRole('link', { name: userName, exact: true });
+  }
+
+  // Resource information
+  get resourceType(): Locator {
+    return this.page.locator('[data-test-display-resource-type-general]');
+  }
+
+  get resourceLanguage(): Locator {
+    return this.page.locator('[data-test-display-resource-language]');
+  }
+
+  /**
+   * The `<label for>` targets a `p-select` host (not a labelable element), and the
+   * select's combobox takes its accessible name from the *current value* - so neither
+   * `getByLabel` nor a named `getByRole('combobox')` identifies these; the app's own
+   * `data-test-select-*` hooks do.
+   */
+  get resourceTypeDropdown(): Locator {
+    return this.dialog('Edit Resource Information').locator('[data-test-select-resource-type]');
+  }
+
+  get resourceLanguageDropdown(): Locator {
+    return this.dialog('Edit Resource Information').locator('[data-test-select-resource-language]');
+  }
+
+  get resourceInformationSaveButton(): Locator {
+    return this.dialog('Edit Resource Information').getByRole('button', { name: 'Save', exact: true });
+  }
+
+  /** Port of `select_by_search` - types into the open select's filter box, then picks the option. */
+  async selectBySearch(selection: string): Promise<void> {
+    await this.page.getByRole('searchbox').fill(selection);
+    await this.page.getByRole('option', { name: selection, exact: true }).click();
+  }
+
+  /**
+   * Picks an option from the open Resource language select. Python's `select_by_search`
+   * typed into the select's filter box, but that filter is currently broken in the app
+   * - verified live via `_debug_inspect.spec.ts`: the `p-select` is configured with
+   * `filterBy="label"` while its options only carry `name`/`code`, so any search text
+   * shows "No results found". The list is also virtual-scrolled (only ~8 options exist
+   * in the DOM at once), so this scrolls it from the top until the option renders.
+   */
+  async selectFromVirtualScrollList(option: string): Promise<void> {
+    const target = this.page.getByRole('option', { name: option, exact: true });
+    const scroller = this.page.locator('.p-select-overlay .p-virtualscroller');
+    await scroller.evaluate((el) => (el.scrollTop = 0));
+    for (let i = 0; i < 200; i++) {
+      const found = await target
+        .waitFor({ state: 'visible', timeout: 300 })
+        .then(() => true)
+        .catch(() => false);
+      if (found) break;
+      await scroller.evaluate((el) => (el.scrollTop += el.clientHeight / 2));
+    }
+    await target.click();
+  }
+
+  async selectOption(option: string): Promise<void> {
+    await this.page.getByRole('option', { name: option, exact: true }).click();
+  }
+
+  // Funding
+  get fundingDialog(): Locator {
+    return this.dialog('Edit Funding/Support Information');
+  }
+
+  /** Funder `p-select` for the n-th funder entry (same reasoning as `resourceTypeDropdown`). */
+  funderName(index = 0): Locator {
+    return this.fundingDialog.locator(`p-select#funderName-${index}`);
+  }
+
+  awardTitle(index = 0): Locator {
+    return this.fundingDialog.locator(`#awardTitle-${index}`);
+  }
+
+  awardInfoUri(index = 0): Locator {
+    return this.fundingDialog.locator(`#awardUri-${index}`);
+  }
+
+  awardNumber(index = 0): Locator {
+    return this.fundingDialog.locator(`#awardNumber-${index}`);
+  }
+
+  get addFunderButton(): Locator {
+    return this.fundingDialog.getByRole('button', { name: 'Add More', exact: true });
+  }
+
+  get removeFunderButtons(): Locator {
+    return this.fundingDialog.getByRole('button', { name: 'Remove', exact: true });
+  }
+
+  get saveFunderInfoButton(): Locator {
+    return this.fundingDialog.getByRole('button', { name: 'Save', exact: true });
+  }
+
+  get displayFunderName(): Locator {
+    return this.page.locator('[data-test-display-funder-name]');
+  }
+
+  get displayAwardTitle(): Locator {
+    return this.page.locator('[data-test-display-funder-award-title]');
+  }
+
+  get displayAwardNumber(): Locator {
+    return this.page.locator('[data-test-display-funder-award-number]');
+  }
+
+  get displayAwardInfoUri(): Locator {
+    return this.page.locator('[data-test-display-funder-award-uri]');
+  }
+
+  // Affiliated institutions
+  async getAffiliationsList(): Promise<string[]> {
+    const links = this.section('Affiliated Institutions').locator('osf-affiliated-institutions-view a');
+    const hrefs = await links.evaluateAll((elements) =>
+      elements.map((el) => (el as HTMLAnchorElement).href)
+    );
+    return hrefs.map((href) => href.replace(/\/+$/, '').split('/').pop() as string);
+  }
+
+  // Subjects
+  /**
+   * Scoped to the Subjects card - Python's `//div[@class="p-chip-label"]` was
+   * page-wide, so it also picked up the Tags card's chips.
+   */
+  async getSubjectList(): Promise<string[]> {
+    return (await this.section('Subjects').locator('p-chip').allInnerTexts()).map((s) => s.trim());
+  }
+
+  subjectChip(subjectName: string): Locator {
+    return this.section('Subjects')
+      .locator('p-chip')
+      .filter({ hasText: new RegExp(`^\\s*${subjectName}\\s*$`) });
+  }
+
+  async selectTopLevelSubject(selection: string): Promise<void> {
+    await this.section('Subjects')
+      .getByRole('treeitem', { name: selection, exact: true })
+      .getByRole('checkbox')
+      .first()
+      .click();
+  }
+
+  async removeSubject(subjectName: string): Promise<void> {
+    await this.subjectChip(subjectName).getByRole('button', { name: 'Remove', exact: true }).click();
+  }
+
+  // License
+  get licenseInfo(): Locator {
+    return this.page.locator('[data-test-target-license-name]');
+  }
+
+  // Tags
+  get tagInput(): Locator {
+    return this.section('Tags').getByLabel('Tag input');
+  }
+
+  async getTagsList(): Promise<string[]> {
+    return (await this.section('Tags').locator('p-chip').allInnerTexts()).map((t) => t.trim());
+  }
+
+  tagChip(tagName: string): Locator {
+    return this.section('Tags').locator(`p-chip[aria-label="${tagName}"]`);
+  }
+
+  /** The tag chip's remove icon is a bare `<svg>` with no role/name - PrimeNG's structural class is the only hook. */
+  async clickOnRemoveTag(tagName: string): Promise<void> {
+    await this.tagChip(tagName).locator('.p-chip-remove-icon').click();
+  }
+
+  // Components
+  get addContributorModal(): AddContributorModal {
+    return new AddContributorModal(this.page);
+  }
+
+  get editContributorsModal(): EditContributorsModal {
+    return new EditContributorsModal(this.page);
+  }
+
+  get editAffiliationsModal(): EditAffiliationsModal {
+    return new EditAffiliationsModal(this.page);
+  }
+
+  get editLicenseModal(): EditLicenseModal {
+    return new EditLicenseModal(this.page);
   }
 }
 

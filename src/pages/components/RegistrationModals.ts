@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, expect } from '@playwright/test';
 
 /**
  * Port of the registration-contributors-page modals in `components/registration.py`
@@ -84,5 +84,132 @@ export class DeleteVolModal {
     } else {
       await this.cancelButton.click();
     }
+  }
+}
+
+/**
+ * Below: port of the metadata-page modals in `components/registration.py`
+ * (`EditContributorsModal`, `EditAffiliationsModal`, `EditLicenseModal`). Each is a
+ * `p-dialog` whose `aria-labelledby` header gives it an accessible name, so they're
+ * scoped with `getByRole('dialog', { name })` - verified live via
+ * `_debug_inspect.spec.ts` per CLAUDE.md. That also keeps them apart when the Add
+ * Contributor dialog opens on top of the Edit contributors one.
+ */
+export class EditContributorsModal {
+  constructor(protected readonly page: Page) {}
+
+  get root(): Locator {
+    return this.page.getByRole('dialog', { name: 'Edit contributors', exact: true });
+  }
+
+  get searchInput(): Locator {
+    return this.root.getByPlaceholder('Search Registration Contributors');
+  }
+
+  get tableRows(): Locator {
+    return this.root.locator('tbody.p-datatable-tbody tr');
+  }
+
+  /**
+   * Unlike the Contributors *page* (`RegistrationContributorsPage.searchFor`), this
+   * dialog's search box doesn't filter the table - verified live via
+   * `_debug_inspect.spec.ts`: typing a name (or pressing Enter) leaves every row in
+   * place. Python's `user_permission` therefore silently read the *first* row (the
+   * registration's admin owner) rather than the searched contributor. The search is
+   * still typed to mirror the Python flow, but the row itself is located by name.
+   */
+  async searchFor(contributorName: string): Promise<Locator> {
+    await this.searchInput.fill(contributorName);
+    const row = this.rowFor(contributorName);
+    await expect(row).toHaveCount(1);
+    return row;
+  }
+
+  rowFor(contributorName: string): Locator {
+    return this.tableRows.filter({
+      has: this.page.getByRole('link', { name: contributorName, exact: true }),
+    });
+  }
+
+  userPermission(contributorName: string): Locator {
+    return this.rowFor(contributorName).getByRole('combobox');
+  }
+
+  removeButton(contributorName: string): Locator {
+    return this.rowFor(contributorName).getByRole('button', { name: 'Delete', exact: true });
+  }
+
+  /**
+   * Matched by visible text rather than `getByRole('option', { name })`: these options'
+   * accessible names aren't their visible labels (the select itself is labelled with
+   * raw i18n keys like `project.contributors.permissions.administrator`). Anchored so
+   * `Read` can't also match `Read + Write`.
+   */
+  async selectFromDropdownListbox(contributorName: string, permission: string): Promise<void> {
+    await this.userPermission(contributorName).click();
+    await this.page
+      .getByRole('option')
+      .filter({ hasText: new RegExp(`^\\s*${permission.replace(/\+/g, '\\+')}\\s*$`) })
+      .click();
+  }
+
+  /** The delete confirmation is a PrimeNG `p-confirmdialog` (`role="alertdialog"`), not part of this dialog. */
+  get removeConfirmButton(): Locator {
+    return this.page
+      .getByRole('alertdialog', { name: 'Remove contributor' })
+      .getByRole('button', { name: 'Remove', exact: true });
+  }
+
+  async clickOnBibliographicCheckbox(contributorName: string): Promise<void> {
+    await this.rowFor(contributorName).getByLabel('Bibliographic Contributor').click();
+  }
+
+  /**
+   * Scoped to the dialog body: the header's X icon button is also named "Close"
+   * (`aria-label`), which would make a dialog-wide `Close` lookup ambiguous.
+   */
+  async clickOnButton(buttonName: string): Promise<void> {
+    await this.root
+      .locator('.p-dialog-content')
+      .getByRole('button', { name: buttonName, exact: true })
+      .click();
+  }
+}
+
+export class EditAffiliationsModal {
+  constructor(protected readonly page: Page) {}
+
+  get root(): Locator {
+    return this.page.getByRole('dialog', { name: 'Edit Affiliated Institutions', exact: true });
+  }
+
+  /**
+   * The institution checkboxes carry no accessible name (the logo `<img>` beside them
+   * holds the institution's name as `alt`), so the input's `id` - the institution id,
+   * same hook the Python original used - is the only unique handle.
+   */
+  async clickOnCheckbox(institutionId: string): Promise<void> {
+    await this.root.locator(`input[type="checkbox"][id="${institutionId}"]`).click();
+  }
+
+  get saveAffiliationsButton(): Locator {
+    return this.root.getByRole('button', { name: 'Save', exact: true });
+  }
+}
+
+export class EditLicenseModal {
+  constructor(protected readonly page: Page) {}
+
+  get root(): Locator {
+    return this.page.getByRole('dialog', { name: 'Edit License', exact: true });
+  }
+
+  get saveButton(): Locator {
+    return this.root.getByRole('button', { name: 'Save', exact: true });
+  }
+
+  async selectFromDropdownListbox(license: string): Promise<void> {
+    await this.root.getByRole('combobox').click();
+    await this.page.getByRole('option', { name: license, exact: true }).click();
   }
 }
