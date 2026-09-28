@@ -235,6 +235,12 @@ Progress: **7 / 17** sections migrated.
     (`selectFromVirtualScrollList`).
   - Removing the only funder entry closes the Funding dialog - Python's reopen step is
     kept, with an explicit wait for the dialog to close first.
+  - `edit support funding information` no longer fetches its award title/URI/number
+    from the SHARE funder index (`get_funder_information`). SHARE staging search can
+    hang for minutes, and the values were only used as text to type in. The same values
+    every run could also match what an earlier run already saved, so the test could pass
+    even if Save did nothing. It now types unique values generated each run. The
+    Funder Name dropdown itself searches ROR (`api.ror.org`), not SHARE.
   - Subjects/tags/affiliations save as you toggle them, so the tests wait for that save
     request before reloading instead of reloading straight away.
 

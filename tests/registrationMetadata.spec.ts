@@ -1,4 +1,5 @@
-import { APIRequestContext, Page } from '@playwright/test';
+import { Page } from '@playwright/test';
+import { Faker } from '@faker-js/faker';
 
 import * as settings from '../config/settings';
 import { test as base, expect } from '../src/fixtures';
@@ -29,24 +30,17 @@ const test = base.extend<MetadataFixtures>({
   },
 });
 
-async function getFunderInformation(
-  request: APIRequestContext,
-  funderName: string
-): Promise<{ awardTitle: string; awardUri: string; awardNumber: string }> {
-  const response = await request.get(settings.FUNDER_INFO_URL);
-  const data = await response.json();
-  const match = (data.included as any[])
-    .filter(
-      (funder) =>
-        funder.type === 'index-card' &&
-        funder.attributes.resourceMetadata.name[0]['@value'] === funderName
-    )
-    .pop();
-  if (!match) throw new Error(`Funder not found in SHARE index: ${funderName}`);
+
+function generateAwardInformation(fake: Faker): {
+  awardTitle: string;
+  awardUri: string;
+  awardNumber: string;
+} {
+  const id = fake.string.alphanumeric(8);
   return {
-    awardTitle: match.attributes.resourceMetadata.resourceType[0]['@id'],
-    awardUri: match.attributes.resourceIdentifier[0],
-    awardNumber: match.id,
+    awardTitle: `Selenium award ${id}`,
+    awardUri: `https://example.org/awards/${id}`,
+    awardNumber: `AWD-${id}`,
   };
 }
 
@@ -184,12 +178,12 @@ test.describe('Registration Metadata', { tag: '@core' }, () => {
   });
 
   test('edit support funding information', async ({
-    request,
     registrationMetadataPage,
     registrationGuid,
+    fake,
   }) => {
     const funderName = 'National Institutes of Health';
-    const { awardTitle, awardUri, awardNumber } = await getFunderInformation(request, funderName);
+    const { awardTitle, awardUri, awardNumber } = generateAwardInformation(fake);
 
     await registrationMetadataPage.clickOnEdit('Funding/Support Information');
     const funderInfo = await osfApi.getFunderDataRegistration(registrationGuid);
