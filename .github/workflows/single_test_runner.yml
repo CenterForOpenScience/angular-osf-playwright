@@ -30,6 +30,7 @@ on:
           - registrationSidebar.spec.ts
           - search.spec.ts
           - user.spec.ts
+          - projectFiles.ts
       browser:
         description: 'Browser'
         required: true
