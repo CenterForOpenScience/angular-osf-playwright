@@ -251,7 +251,7 @@ test.describe('Registration Contributors', { tag: '@core' }, () => {
     expect(contributorsList).not.toContain(newUser);
 
     await contributorsPage.clickOnButton('Add Contributor');
-    await contributorsPage.addContributorModal.searchInput.fill(newUser);
+    await contributorsPage.addContributorModal.searchFor(newUser);
     await contributorsPage.addContributorModal.selectContributorCheckboxByName(newUser);
     await contributorsPage.addContributorModal.clickOnNext();
     await contributorsPage.addContributorModal.clickOnButton('Done');

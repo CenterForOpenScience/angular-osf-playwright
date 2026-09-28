@@ -5,15 +5,6 @@ import { test as base, expect } from '../src/fixtures';
 import * as osfApi from '../src/api/osfApi';
 import { RegistrationMetadataPage, registrationUrl } from '../src/pages/RegistrationPage';
 
-/**
- * Port of `tests/test_registration_metadata.py`. Only `TestRegistrationMetadata` is
- * live in the Python source - `TestFilesMetadata` and `TestProjectMetadata` (and their
- * fixtures) are entirely commented out there, so they're not ported.
- *
- * Like the Python class, several tests are add/remove pairs against one shared fixture
- * registration (e.g. `add affiliation` leaves `cos` behind for `remove affiliation`),
- * so they rely on running in file order - the config's single worker guarantees that.
- */
 
 const TITLE = 'Selenium Registration for Metadata tests';
 
@@ -38,11 +29,6 @@ const test = base.extend<MetadataFixtures>({
   },
 });
 
-/**
- * Port of the module-level `get_funder_information` - looks the funder up in the
- * SHARE index to get award data to enter. Like the Python loop (which never
- * `break`s), the last matching index card wins.
- */
 async function getFunderInformation(
   request: APIRequestContext,
   funderName: string
@@ -64,11 +50,6 @@ async function getFunderInformation(
   };
 }
 
-/**
- * Subjects/tags/affiliations save as soon as they're toggled (no Save button for
- * subjects/tags). Python's `reload()` right after could race the save request, so
- * wait for the app's write call to come back before reloading.
- */
 async function waitForSave(page: Page, action: () => Promise<void>): Promise<void> {
   await Promise.all([
     page.waitForResponse(
@@ -124,7 +105,7 @@ test.describe('Registration Metadata', { tag: '@core' }, () => {
     await reloadMetadataPage(registrationMetadataPage, page);
     await registrationMetadataPage.clickOnEdit('Contributors');
     await registrationMetadataPage.editContributorsModal.clickOnButton('Add Contributor');
-    await registrationMetadataPage.addContributorModal.searchInput.fill(newUser);
+    await registrationMetadataPage.addContributorModal.searchFor(newUser);
     await registrationMetadataPage.addContributorModal.selectContributorCheckboxByName(newUser);
     await registrationMetadataPage.addContributorModal.clickOnNext();
     await registrationMetadataPage.addContributorModal.clickOnButton('Done');
@@ -170,12 +151,7 @@ test.describe('Registration Metadata', { tag: '@core' }, () => {
     expect(await registrationMetadataPage.getContributorsList()).not.toContain(contributorName);
   });
 
-  /**
-   * The Python version only checked the Contributors card - but the previous test
-   * already made this user non-bibliographic, and the card only lists bibliographic
-   * contributors, so that assertion held before removal even ran. Also checked via the
-   * API here so the test actually verifies the removal.
-   */
+
   test('remove contributors', async ({ page, session, registrationMetadataPage, registrationGuid }) => {
     const newUser = settings.PRODUCTION ? 'OSF Tester1' : 'OSF Runscope Admin';
 
@@ -270,14 +246,6 @@ test.describe('Registration Metadata', { tag: '@core' }, () => {
     expect(await registrationMetadataPage.getAffiliationsList()).not.toContain(institutionId);
   });
 
-  /**
-   * The API refuses to leave a registration with zero subjects ("Registration must
-   * have at least one subject to be registered" - 400, verified live). With `Business`
-   * as the fixture's only subject, `remove top level subject` could never succeed and
-   * `add top level subject`'s precondition never held again - the Python pair was
-   * stuck. So the subjects are reset via the API to a different baseline subject
-   * first, which removes `Business` and leaves something behind once it's removed.
-   */
   test('add top level subject', async ({ page, registrationGuid, registrationMetadataPage }) => {
     const newTopLevelSubject = 'Business';
 
