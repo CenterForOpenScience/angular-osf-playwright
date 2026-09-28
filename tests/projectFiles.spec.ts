@@ -265,6 +265,105 @@ test.describe('Project Files Page', { tag: '@core' }, () => {
 
 })
 
+for (const provider of providers) {
+    test(`Download as a zip from ${provider}`, async ({ page, filesPage }) => {
+        test.skip(UNSUPPORTED_PROVIDERS.includes(provider), 'Functionality not supported');
+        // Substitute with your actual project ID or fixture login
+        const currentBrowser = page.context().browser()?.browserType().name();
+        const currentBrowserName: string = currentBrowser === 'chromium' ? 'chrome' : (currentBrowser ?? 'unknown');
+        const folderName = 'download_' + currentBrowserName + '_' + provider;
+
+        if (provider !== 'osfstorage') {
+            //await filesPage.selectAddon.click();
+            await filesPage.selectFromAddonList(provider);
+        }
+
+        // Open the folder (search + click lives in the page object)
+        const filePath = path.join(os.homedir(), 'Downloads', folderName);
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+
+        const rowPromise = findFolderBySearch(filesPage, folderName);
+        const row = await rowPromise;
+        if (!row) {
+            throw new Error(`Could not find row for file: ${folderName}`);
+        }
+
+        // Click the Folder link to navagate inside the folder
+        await filesPage.clickOnFolderLink(folderName, row);
+
+
+        // The menu overlay renders outside the row (PrimeNG overlay), so scope to page, not row
+        //const downloadButton = page.locator('li#download'); // overlay renders via appendto="body", outside row
+        const downloadPromise = page.waitForEvent('download');
+
+        await filesPage.clickOnButton('Download As Zip')
+        const download = await downloadPromise;
+
+        // Save it explicitly to a known path (or just verify via the Download object's own API)
+        const downloadFolderName = folderName + '.zip'
+        const downloadPath = path.join(os.homedir(), 'Downloads', downloadFolderName);
+        await download.saveAs(downloadPath);
+
+        await filesPage.reload();
+
+        if (provider !== 'osfstorage') {
+            //await filesPage.selectAddon.click();
+            await filesPage.selectFromAddonList(provider);
+        }
+
+        const currentDate = new Date();
+        expect(fs.existsSync(downloadPath)).toBeTruthy();
+
+        const stats = fs.statSync(downloadPath);
+        const fileModDate = new Date(stats.mtime);
+        expect(fileModDate.toDateString()).toBe(currentDate.toDateString());
+
+
+    });
+}
+
+for (const provider of providers) {
+    test(`Top level Download as zip from ${provider}`, async ({ page, filesPage, defaultAddonsProject }) => {
+        test.skip(UNSUPPORTED_PROVIDERS.includes(provider), 'Functionality not supported');
+        // Substitute with your actual project ID or fixture login
+        //const node_id = defaultAddonsProject.id;
+        const currentBrowser = page.context().browser()?.browserType().name();
+        const currentBrowserName: string = currentBrowser === 'chromium' ? 'chrome' : (currentBrowser ?? 'unknown');
+        const folderName =  provider +  '-archive.zip'
+
+        if (provider !== 'osfstorage') {
+            await filesPage.selectFromAddonList(provider);
+        }
+    
+        const downloadPromise = page.waitForEvent('download');
+
+        await filesPage.clickOnButton('Download As Zip')
+        const download = await downloadPromise;
+
+        // Save it explicitly to a known path (or just verify via the Download object's own API)
+        //const downloadFolderName = folderName + '.zip'
+        const downloadPath = path.join(os.homedir(), 'Downloads', folderName);
+        await download.saveAs(downloadPath);
+
+        await filesPage.reload();
+
+        if (provider !== 'osfstorage') {
+            //await filesPage.selectAddon.click();
+            await filesPage.selectFromAddonList(provider);
+        }
+
+        const currentDate = new Date();
+        expect(fs.existsSync(downloadPath)).toBeTruthy();
+
+        const stats = fs.statSync(downloadPath);
+        const fileModDate = new Date(stats.mtime);
+        expect(fileModDate.toDateString()).toBe(currentDate.toDateString());
+
+    });
+}
+
 test.describe('Files page sort', () => {
   for (const provider of providers) {
     for (const sortCase of SORT_CASES) {
@@ -291,4 +390,5 @@ test.describe('Files page sort', () => {
       });
     }
   }
+  
 });
