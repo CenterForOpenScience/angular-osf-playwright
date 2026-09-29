@@ -491,21 +491,21 @@ test.describe('Profile Page Projects Tab', () => {
 
   test('filtering by resource type on projects tab', async ({ profilePageShort }) => {
     await profilePageShort.projectsTabLink.click();
-    await profilePageShort.checkFilteringByResourceType('', 'Book');
+    await profilePageShort.checkFilteringByResourceType('Book');
   });
 
   test('clearing of applied filters on projects tab', async ({ profilePageShort }) => {
-    await profilePageShort.projectsTabLink.click();
+    await profilePageShort.openTab(profilePageShort.projectsTabLink);
     await profilePageShort.checkClearingOfAppliedFilters();
   });
 
   test('sorting by created date on projects tab', async ({ profilePageShort }) => {
-    await profilePageShort.projectsTabLink.click();
+    await profilePageShort.openTab(profilePageShort.projectsTabLink);
     await profilePageShort.checkSortingByCreatedDate('created');
   });
 
   test('sorting by modified date on projects tab', async ({ profilePageShort }) => {
-    await profilePageShort.projectsTabLink.click();
+    await profilePageShort.openTab(profilePageShort.projectsTabLink);
     await profilePageShort.checkSortingByModifiedDate();
   });
 
@@ -632,7 +632,7 @@ test.describe('Profile Page All Tab', () => {
   });
 
   test('filtering by resource type on all tab', async ({ profilePageShort }) => {
-    await profilePageShort.checkFilteringByResourceType('', 'Registration');
+    await profilePageShort.checkFilteringByResourceType('Book');
   });
 
   test('clearing of applied filters on all tab', async ({ profilePageShort }) => {
@@ -640,7 +640,7 @@ test.describe('Profile Page All Tab', () => {
   });
 
   test('sorting by created date on all tab', async ({ profilePageShort }) => {
-    await profilePageShort.checkSortingByCreatedDate('created');
+    await profilePageShort.checkSortingByCreatedDate(['created', 'registered']);
   });
 
   test('sorting by modified date on all tab', async ({ profilePageShort }) => {
@@ -803,7 +803,7 @@ test.describe('Profile Page Registrations Tab', () => {
 
   test('filtering by resource type on registrations tab', async ({ profilePageShort }) => {
     await profilePageShort.registrationsTabLink.click();
-    await profilePageShort.checkFilteringByResourceType('', 'Registration');
+    await profilePageShort.checkFilteringByResourceType('StudyRegistration', { verifyOnCard: false });
   });
 
   test('filtering by data on registrations tab', async ({ profilePageShort }) => {
@@ -871,17 +871,17 @@ test.describe('Profile Page Registrations Tab', () => {
   });
 
   test('clearing of applied filters on registration tab', async ({ profilePageShort }) => {
-    await profilePageShort.registrationsTabLink.click();
+    await profilePageShort.openTab(profilePageShort.registrationsTabLink);
     await profilePageShort.checkClearingOfAppliedFilters();
   });
 
   test('sorting by created date on registrations tab', async ({ profilePageShort }) => {
-    await profilePageShort.registrationsTabLink.click();
+    await profilePageShort.openTab(profilePageShort.registrationsTabLink);
     await profilePageShort.checkSortingByCreatedDate('registered');
   });
 
   test('sorting by modified date on registrations tab', async ({ profilePageShort }) => {
-    await profilePageShort.registrationsTabLink.click();
+    await profilePageShort.openTab(profilePageShort.registrationsTabLink);
     await profilePageShort.checkSortingByModifiedDate();
   });
 
@@ -1030,17 +1030,17 @@ test.describe('Profile Page Preprints Tab', () => {
   });
 
   test('clearing of applied filters on preprints tab', async ({ profilePageShort }) => {
-    await profilePageShort.preprintsTabLink.click();
+    await profilePageShort.openTab(profilePageShort.preprintsTabLink);
     await profilePageShort.checkClearingOfAppliedFilters();
   });
 
   test('sorting by created date on preprints tab', async ({ profilePageShort }) => {
-    await profilePageShort.preprintsTabLink.click();
-    await profilePageShort.checkSortingByCreatedDate('registered');
+    await profilePageShort.openTab(profilePageShort.preprintsTabLink);
+    await profilePageShort.checkSortingByCreatedDate('created');
   });
 
   test('sorting by modified date on preprints tab', async ({ profilePageShort }) => {
-    await profilePageShort.preprintsTabLink.click();
+    await profilePageShort.openTab(profilePageShort.preprintsTabLink);
     await profilePageShort.checkSortingByModifiedDate();
   });
 
@@ -1130,7 +1130,7 @@ test.describe('Profile Page Files Tab', () => {
 
   test('filtering by resource type on files tab', async ({ profilePageShort }) => {
     await profilePageShort.filesTabLink.click();
-    await profilePageShort.checkFilteringByResourceType('', 'Book');
+    await profilePageShort.checkFilteringByResourceType('Book');
   });
 
   test('filtering by community schema on files tab', async ({ profilePageShort }) => {
@@ -1139,17 +1139,17 @@ test.describe('Profile Page Files Tab', () => {
   });
 
   test('clearing of applied filters on files tab', async ({ profilePageShort }) => {
-    await profilePageShort.filesTabLink.click();
+    await profilePageShort.openTab(profilePageShort.filesTabLink);
     await profilePageShort.checkClearingOfAppliedFilters();
   });
 
   test('sorting by created date on files tab', async ({ profilePageShort }) => {
-    await profilePageShort.filesTabLink.click();
+    await profilePageShort.openTab(profilePageShort.filesTabLink);
     await profilePageShort.checkSortingByCreatedDate('created');
   });
 
   test('sorting by modified date on files tab', async ({ profilePageShort }) => {
-    await profilePageShort.filesTabLink.click();
+    await profilePageShort.openTab(profilePageShort.filesTabLink);
     await profilePageShort.checkSortingByModifiedDate();
   });
 

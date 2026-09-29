@@ -22,36 +22,18 @@ export class SearchPage extends BasePage {
     return `${settings.OSF_HOME}/search/`;
   }
 
-  /**
-   * The search page's initial load fires its own (empty-query) results request. If a
-   * test starts typing/clicking before that settles, its own request's loading-spinner
-   * cycle can overlap with - and finish before - the one triggered by the page's own
-   * load, so a naive `press('Enter')` -> `expect(...).toBeVisible()` can observe stale
-   * results mid-flicker. Settling here first (mirrors the Python `goto_short()`'s
-   * `time.sleep(1)`) means `waitForResultsLoad` afterward is observing only the
-   * request the test itself triggered.
-   */
+
   async goto(): Promise<this> {
     await super.goto();
     await waitUntilPageReady(this.page);
     return this;
   }
 
-  /**
-   * Waits out the loading-spinner cycle triggered by a search submission or tab
-   * switch. See `goto()` above for why a plain "wait for results visible" isn't
-   * enough on this page.
-   */
   async waitForResultsLoad(): Promise<void> {
     await hereThenGone(this.loadingIndicator);
   }
 
-  /**
-   * `div[data-analytics-scope="Search page main"]` (the original port of this
-   * locator) no longer exists anywhere in the app's markup - confirmed live via
-   * `tests/_debug_inspect.spec.ts` per `CLAUDE.md`'s "verify against the live DOM"
-   * rule. `osf-search-page` is the stable custom-element wrapper that replaced it.
-   */
+
   get identity(): Locator {
     return this.page.locator('osf-search-page');
   }
@@ -68,12 +50,7 @@ export class SearchPage extends BasePage {
     return this.page.locator('button[data-test-search-submit]');
   }
 
-  /**
-   * The page also has a hidden `div[role="button"]` panel-menu header sharing the
-   * same accessible name (a mobile/collapsed-nav duplicate) - plain `getByRole`
-   * matches both, so these are scoped to the results container to get only the
-   * real, visible `<button>` tab.
-   */
+
   private get resultsContainer(): Locator {
     return this.page.locator('osf-search-results-container');
   }
@@ -123,14 +100,6 @@ export class SearchPage extends BasePage {
     return this.page.locator('#trove\\:at-date');
   }
 
-  /**
-   * Every filter's multiselect dropdown (funder, license, subject, etc.) renders
-   * with the same generic `id="any-of"` - scoping to whichever accordion panel is
-   * currently expanded (`data-p-active="true"`) is what actually disambiguates them,
-   * not the id itself. All the `*MultiselectDropdown` getters below therefore
-   * resolve to this same locator - kept as separate named getters (rather than one
-   * shared one) purely to mirror which filter each call site is opening.
-   */
   private get activeAccordionMultiselectDropdown(): Locator {
     return this.page.locator('p-accordion-content[data-p-active="true"] p-multiselect#any-of');
   }
@@ -212,12 +181,7 @@ export class SearchPage extends BasePage {
     return this.page.locator('input[role="searchbox"].p-multiselect-filter');
   }
 
-  /**
-   * `p.type.py-1.px-3.font-bold` matches every result card's type label, not just the
-   * first - the Python `Locator` equivalent silently returned the first DOM match
-   * (Selenium's `find_element` semantics), so `.first()` here is required to keep the
-   * same behavior under Playwright's strict-mode locators.
-   */
+
   get firstCardObjectTypeLabel(): Locator {
     return this.page.locator('p.type.py-1.px-3.font-bold').first();
   }
@@ -252,13 +216,7 @@ export class SearchPage extends BasePage {
     return this.searchResults.first().locator('h2 a');
   }
 
-  /**
-   * `div[osfstoppropagation]` (the original port of this locator) no longer uniquely
-   * identifies the card's type badge - verified live via `tests/_debug_inspect.spec.ts`
-   * per `CLAUDE.md`'s "verify against the live DOM" rule, it now also matches every
-   * PrimeNG accordion-header div on the page. Reuse `firstCardObjectTypeLabel`, the
-   * locator `search.spec.ts` already uses successfully for this same type-badge text.
-   */
+
   get nodeType(): Locator {
     return this.firstCardObjectTypeLabel;
   }
@@ -278,19 +236,26 @@ export class SearchPage extends BasePage {
       .nth(Number(index) - 1);
   }
 
+  /** Exact-name match ("Book (18)" but not "BookChapter (1)"), unlike picking by list position. */
+  optionByName(name: string): Locator {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return this.page
+      .locator('ul[role="listbox"] li[role="option"]')
+      .filter({ hasText: new RegExp(`^\\s*${escaped}\\s*\\(\\d+\\)\\s*$`) });
+  }
+
+
+  async expectEveryResultCardToContain(text: string): Promise<void> {
+    const cards = this.page.locator('osf-resource-card');
+    await expect(cards.first()).toBeVisible();
+    await expect(cards.filter({ hasNotText: text })).toHaveCount(0);
+  }
+
   // ---------------------------------------------------------------------------
   // Port of `SearchPageHelpers`
   // ---------------------------------------------------------------------------
 
-  /**
-   * Both option-list rows and additional-filter labels start out visible with just
-   * their name - the "(N)" count is filled in a moment later by a separate
-   * facet-counts request (same async-populate lag as the Subjects dropdown in
-   * checkFilteringBySubject) and can even flicker back to the bare name on a
-   * subsequent refresh. Capture the count inside the same poll iteration that
-   * finds it, rather than asserting it's present and re-reading afterward, so a
-   * flicker between those two reads can't hand back a stale null.
-   */
+
   private async pollForRecordCount(locator: Locator): Promise<number | null> {
     let count: number | null = null;
     await expect
@@ -344,8 +309,7 @@ export class SearchPage extends BasePage {
     await this.waitForResultsLoad();
     const resultCountAfterFilterApplying = await this.getResultsCount();
     expect(resultCountAfterFilterApplying).toBeLessThanOrEqual(numberOfUsers as number);
-    const recordLocator = this.page.locator('p-accordion-panel a', { hasText: nameOfRecord }).first();
-    await expect(recordLocator).toBeVisible();
+    await this.expectEveryResultCardToContain(nameOfRecord);
   }
 
   async checkFilteringByDateCreated(dateCreatedRegistered: string): Promise<void> {
@@ -379,15 +343,12 @@ export class SearchPage extends BasePage {
     const resultCountAfterFilterApplying = await this.getResultsCount();
     expect(resultCountAfterFilterApplying).toBeLessThanOrEqual(numberOfRecords as number);
     const popup = await clickExpectingPopup(this.page, this.firstSearchResultTitle);
-    // A subject can appear in more than one taxonomy path, so the Subjects
-    // section can render the same tag label twice (e.g. two "Life Sciences"
-    // chips) - .first() avoids a strict-mode violation on the duplicate.
+ 
     const subjectLocator = popup
       .locator(':is(div, section):has(> h3:text-is("Subjects"))')
       .locator('span', { hasText: nameOfRecord })
       .first();
-    // Same subject-taxonomy slowness as the filter dropdown above - the popup's
-    // Subjects section shows a skeleton loader before the real tags populate.
+
     await expect(subjectLocator).toBeVisible({ timeout: 35000 });
   }
 
@@ -511,26 +472,44 @@ export class SearchPage extends BasePage {
     await expect(recordLocator).toContainText(nameOfRecord);
   }
 
+  /**
+   * Selects `resourceType` by exact option name. The original port picked whichever
+   * option came first (callers passed `''`) and then only looked for any `<p>`
+   * containing e.g. "Registration" - which every card's type badge on that tab already
+   * matches, filtered or not.
+   *
+   * Registration cards don't render a "Resource type:" line at all (verified live), so
+   * pass `verifyOnCard: false` there - the applied-filter chip plus the result count
+   * dropping to the option's count is then the proof the filter took effect.
+   */
   async checkFilteringByResourceType(
-    resourceTypeOption: string,
-    displayedResourceTypeOption: string
+    resourceType: string,
+    { verifyOnCard = true }: { verifyOnCard?: boolean } = {}
   ): Promise<void> {
     await this.resourceTypeMenu.click();
     await this.resourceTypeMultiselectDropdown.click();
-    await this.multiselectFilterInput.fill(resourceTypeOption);
-    if (!(await present(this.optionByIndex('1')))) {
-      test.skip(true, 'Record was not found in the list');
+    await this.multiselectFilterInput.fill(resourceType);
+    const option = this.optionByName(resourceType);
+    if (!(await present(option))) {
+      test.skip(true, `Resource type "${resourceType}" was not found in the list`);
     }
-    const numberOfRecords = await this.getRecordCount('1');
-    await this.optionCheckboxByIndex('1').click({ force: true });
+    const numberOfRecords = await this.pollForRecordCount(option);
+    await option.locator('input[type="checkbox"]').click({ force: true });
     await this.waitForResultsLoad();
     const resultCountAfterFilterApplying = await this.getResultsCount();
     expect(resultCountAfterFilterApplying).toBeLessThanOrEqual(numberOfRecords as number);
-    await this.chevronMenuFirstCard.click();
-    const resourceTypeInCardLocator = this.page
-      .locator('p', { hasText: displayedResourceTypeOption })
-      .first();
-    await expect(resourceTypeInCardLocator).toBeVisible();
+    await expect(
+      this.page.locator('.p-chip-label', { hasText: `Resource type: ${resourceType}` })
+    ).toBeVisible();
+    if (verifyOnCard) {
+      await this.chevronMenuFirstCard.click();
+      const resourceTypeInCard = this.page
+        .locator('osf-resource-card')
+        .first()
+        .locator('p', { hasText: 'Resource type:' })
+        .filter({ visible: true });
+      await expect(resourceTypeInCard).toContainText(resourceType);
+    }
   }
 
   async checkFilteringByAdditionalOptions(
@@ -574,52 +553,77 @@ export class SearchPage extends BasePage {
   }
 
   async checkClearingOfAppliedFilters(): Promise<void> {
-    // Callers click a tab link immediately before this - wait for that switch's
-    // own results refresh to settle before taking the "no filter" baseline reading,
-    // otherwise this can read the stale count from the previous tab/state.
+
     await this.waitForResultsLoad();
     const resultCountWithoutFilter = await this.getResultsCount();
     await this.dateCreatedMenu.click();
     await this.dateCreatedMultiselectDropdown.click();
+    // Compare against the option's own count, not the unfiltered total - "<= total"
+    // also holds when the filter silently isn't applied at all.
+    const numberOfRecords = await this.getRecordCount('1');
     await this.optionCheckboxByIndex('1').click({ force: true });
     await this.waitForResultsLoad();
     const resultCountAfterFilterApplying = await this.getResultsCount();
-    expect(resultCountAfterFilterApplying).toBeLessThanOrEqual(resultCountWithoutFilter as number);
+    expect(resultCountAfterFilterApplying).toBeLessThanOrEqual(numberOfRecords as number);
     await this.page.locator('span.p-chip-remove-icon').click();
     await this.waitForResultsLoad();
-    // waitForResultsLoad's spinner-based wait can race ahead of the Angular
-    // re-render when the request settles faster than the spinner's own
-    // appear/disappear cycle can be observed (same class of flicker as the
-    // goto()/Subjects-dropdown cases documented above) - a single read here can
-    // land on the stale, still-filtered count. Poll the actual count instead of
-    // trusting one post-wait read.
+
     await expect
       .poll(() => this.getResultsCount(), { timeout: settings.LONG_TIMEOUT_MS })
       .toBe(resultCountWithoutFilter);
   }
 
-  async checkSortingByCreatedDate(createdRegistered: string): Promise<void> {
-    await this.sortByButton.click();
-    await this.sortByDateCreatedNewest.click();
-    let dates = await this.getDates(`Date "${createdRegistered}"`);
-    this.assertSorting(dates, 'descending');
+  async openTab(tabLink: Locator): Promise<void> {
+    const request = this.page.waitForRequest((req) => req.url().includes('index-card-search'));
+    await tabLink.click();
+    await (await request).response();
+    await expect(this.searchResults.first()).toBeVisible();
+  }
 
+
+  async applySort(option: Locator, sortParam: string): Promise<void> {
+    const response = this.page.waitForResponse(
+      (res) =>
+        res.url().includes('index-card-search') &&
+        new URL(res.url()).searchParams.get('sort') === sortParam
+    );
     await this.sortByButton.click();
-    await this.sortByDateCreatedOldest.click();
-    dates = await this.getDates(`Date "${createdRegistered}"`);
-    this.assertSorting(dates, 'ascending');
+    await option.click();
+    await response;
+    await expect(this.searchResults.first()).toBeVisible();
+  }
+
+
+  private async skipIfTooFewResultsToSort(): Promise<void> {
+    await expect(this.searchResults.first()).toBeVisible();
+    const resultCount = await this.getResultsCount();
+    if ((resultCount ?? 0) < 2) {
+      test.skip(true, `Only ${resultCount} result(s) - not enough to verify sorting`);
+    }
+  }
+
+
+  async checkSortingByCreatedDate(createdRegistered: string | string[]): Promise<void> {
+    const labels = (Array.isArray(createdRegistered) ? createdRegistered : [createdRegistered]).map(
+      (label) => `Date ${label}`
+    );
+    await this.skipIfTooFewResultsToSort();
+
+    await this.applySort(this.sortByDateCreatedNewest, '-dateCreated');
+    this.assertSorting(await this.getDates(labels), 'descending');
+
+    await this.applySort(this.sortByDateCreatedOldest, 'dateCreated');
+    this.assertSorting(await this.getDates(labels), 'ascending');
   }
 
   async checkSortingByModifiedDate(): Promise<void> {
-    await this.sortByButton.click();
-    await this.sortByDateModifiedNewest.click();
-    let dates = await this.getDates('Date modified');
-    this.assertSorting(dates, 'descending');
+    await this.skipIfTooFewResultsToSort();
 
-    await this.sortByButton.click();
-    await this.sortByDateModifiedOldest.click();
-    dates = await this.getDates('Date modified');
-    this.assertSorting(dates, 'ascending');
+    await this.applySort(this.sortByDateModifiedNewest, '-dateModified');
+    this.assertSorting(await this.getDates('Date modified'), 'descending');
+
+    await this.applySort(this.sortByDateModifiedOldest, 'dateModified');
+    this.assertSorting(await this.getDates('Date modified'), 'ascending');
   }
 
   async checkSearchInFilteringOptions(recordIndex = '1'): Promise<void> {

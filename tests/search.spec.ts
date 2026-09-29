@@ -635,8 +635,14 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
       await searchPageShort.multiselectFilterInput.fill('preprin');
       const nameOfRecord = await searchPageShort.getRecordName('1');
       await searchPageShort.optionCheckboxByIndex('1').click({ force: true });
-      const resourceTypeInCard = page.locator(`p[class*="type"]:text-is("${nameOfRecord}")`).first();
-      await expect(resourceTypeInCard).toBeVisible();
+      await searchPageShort.waitForResultsLoad();
+      // The unfiltered All tab already shows some Preprint cards, so "a Preprint card is
+      // visible" proves nothing - every card's type badge has to match. (No "results <=
+      // option count" check here: SHARE's resourceType facet count is currently one
+      // lower than the filtered search's own total - 1857 vs 1858 - a backend mismatch.)
+      const typeBadges = page.locator('osf-resource-card p[class*="type"]');
+      await expect(typeBadges.first()).toBeVisible();
+      await expect(typeBadges.filter({ hasNotText: new RegExp(`^\\s*${nameOfRecord}\\s*$`) })).toHaveCount(0);
     });
 
     test('filtering by part of collection on all tab', async ({ searchPageShort }) => {
@@ -664,7 +670,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('sorting by created date on all tab', async ({ searchPageShort }) => {
-      await searchPageShort.checkSortingByCreatedDate('created');
+      await searchPageShort.checkSortingByCreatedDate(['created', 'registered']);
     });
 
     test('sorting by modified date on all tab', async ({ searchPageShort }) => {
@@ -872,7 +878,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('clearing of applied filters on preprints tab', async ({ searchPageShort }) => {
-      await searchPageShort.preprintsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.preprintsTabLink);
       await searchPageShort.checkClearingOfAppliedFilters();
     });
 
@@ -881,12 +887,12 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('sorting by created date on preprints tab', async ({ searchPageShort }) => {
-      await searchPageShort.preprintsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.preprintsTabLink);
       await searchPageShort.checkSortingByCreatedDate('created');
     });
 
     test('sorting by modified date on preprints tab', async ({ searchPageShort }) => {
-      await searchPageShort.preprintsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.preprintsTabLink);
       await searchPageShort.checkSortingByModifiedDate();
     });
 
@@ -987,7 +993,9 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
 
     test('filtering by resource type on registrations tab', async ({ searchPageShort }) => {
       await searchPageShort.registrationsTabLink.click();
-      await searchPageShort.checkFilteringByResourceType('', 'Registration');
+      await searchPageShort.checkFilteringByResourceType('StudyRegistration', {
+        verifyOnCard: false,
+      });
     });
 
     test('filtering by data on registrations tab', async ({ searchPageShort }) => {
@@ -1057,7 +1065,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('clearing of applied filters on registration tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await searchPageShort.checkClearingOfAppliedFilters();
     });
 
@@ -1066,12 +1074,12 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('sorting by created date on registrations tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await searchPageShort.checkSortingByCreatedDate('registered');
     });
 
     test('sorting by modified date on registrations tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await searchPageShort.checkSortingByModifiedDate();
     });
 
@@ -1216,17 +1224,17 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('clearing of applied filters on files tab', async ({ searchPageShort }) => {
-      await searchPageShort.filesTabLink.click();
+      await searchPageShort.openTab(searchPageShort.filesTabLink);
       await searchPageShort.checkClearingOfAppliedFilters();
     });
 
     test('sorting by created date on files tab', async ({ searchPageShort }) => {
-      await searchPageShort.filesTabLink.click();
+      await searchPageShort.openTab(searchPageShort.filesTabLink);
       await searchPageShort.checkSortingByCreatedDate('created');
     });
 
     test('sorting by modified date on files tab', async ({ searchPageShort }) => {
-      await searchPageShort.filesTabLink.click();
+      await searchPageShort.openTab(searchPageShort.filesTabLink);
       await searchPageShort.checkSortingByModifiedDate();
     });
 
@@ -1351,7 +1359,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('clearing of applied filters on projects tab', async ({ searchPageShort }) => {
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await searchPageShort.checkClearingOfAppliedFilters();
     });
 
@@ -1372,12 +1380,12 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('sorting by created date on projects tab', async ({ searchPageShort }) => {
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await searchPageShort.checkSortingByCreatedDate('created');
     });
 
     test('sorting by modified date on projects tab', async ({ searchPageShort }) => {
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await searchPageShort.checkSortingByModifiedDate();
     });
 
@@ -1475,14 +1483,21 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
   // TestSearchPageUsersTab (6 tests)
   // -------------------------------------------------------------------------------
   test.describe('Users Tab', () => {
+    // User cards display no dates at all (verified live), so the resulting order can't
+    // be read off the UI. These verify what the UI can: each option fires the matching
+    // SHARE `sort` request and the results re-render (`applySort` fails otherwise).
     test('sorting by created date on users tab', async ({ searchPageShort }) => {
       await searchPageShort.usersTabLink.click();
-      await searchPageShort.checkSortingByCreatedDate('created');
+      await expect(searchPageShort.searchResults.first()).toBeVisible();
+      await searchPageShort.applySort(searchPageShort.sortByDateCreatedNewest, '-dateCreated');
+      await searchPageShort.applySort(searchPageShort.sortByDateCreatedOldest, 'dateCreated');
     });
 
     test('sorting by modified date on users tab', async ({ searchPageShort }) => {
       await searchPageShort.usersTabLink.click();
-      await searchPageShort.checkSortingByModifiedDate();
+      await expect(searchPageShort.searchResults.first()).toBeVisible();
+      await searchPageShort.applySort(searchPageShort.sortByDateModifiedNewest, '-dateModified');
+      await searchPageShort.applySort(searchPageShort.sortByDateModifiedOldest, 'dateModified');
     });
 
     test('search results exist on users tab', async ({ searchPageShort }) => {
@@ -1492,7 +1507,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
       expect(await searchPageShort.firstCardObjectTypeLabel.innerText()).toBe('User');
     });
 
-    test('filtering on users tab', async ({ page, searchPageShort }) => {
+    test('filtering on users tab', async ({ searchPageShort }) => {
       await searchPageShort.usersTabLink.click();
       await expect(searchPageShort.searchResults.first()).toBeVisible();
       await searchPageShort.institutionAffiliationMenu.click();
@@ -1503,10 +1518,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
       await searchPageShort.waitForResultsLoad();
       const resultCountAfterFilterApplying = await searchPageShort.getResultsCount();
       expect(resultCountAfterFilterApplying).toBe(numberOfUsers);
-      const institutionLocator = page
-        .locator('p-accordion-panel a', { hasText: nameOfInstitution })
-        .first();
-      await expect(institutionLocator).toBeVisible();
+      await searchPageShort.expectEveryResultCardToContain(nameOfInstitution);
     });
 
     test('clearing of applied filters on users tab', async ({ page, searchPageShort }) => {
