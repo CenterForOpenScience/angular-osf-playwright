@@ -848,3 +848,86 @@ export async function getRegistrationVolKey(registrationGuid: string): Promise<s
   const data = await session.get(`/v2/registrations/${registrationGuid}/view_only_links/`);
   return data.data?.[0]?.id ?? null;
 }
+
+/**
+ * Below: functions ported for `tests/test_registration_metadata.py`. Same as the
+ * sidebar block above, the Python originals open their own REGISTRATIONS_USER session.
+ */
+
+/**
+ * Port of `update_registration_metadata_with_custom_data` - resets the fixture
+ * registration's resource type/language (and custom-record license) to known values
+ * before each metadata test.
+ */
+export async function updateRegistrationMetadataWithCustomData(
+  registrationId: string
+): Promise<void> {
+  const session = await registrationsSession();
+  const { licenseId } = await getLicenseDataForProvider(session, {
+    licenseName: 'CC0 1.0 Universal',
+  });
+  await session.patch(`v2/custom_item_metadata_records/${registrationId}/`, {
+    data: {
+      id: registrationId,
+      type: 'custom-item-metadata-records',
+      attributes: {
+        language: 'eng',
+        resource_type_general: 'Collection',
+      },
+      relationships: {
+        license: { data: { id: licenseId, type: 'licenses' } },
+      },
+    },
+  });
+}
+
+/** Port of `get_funder_data_registration` - first funder's name, or null if none. */
+export async function getFunderDataRegistration(
+  registrationGuid: string
+): Promise<string | null> {
+  const session = await registrationsSession();
+  const data = await session.get(`v2/custom_item_metadata_records/${registrationGuid}/`);
+  const funders = data.data.attributes.funders;
+  return funders && funders.length ? funders[0].funder_name : null;
+}
+
+/** Port of `update_registration_title`. */
+export async function updateRegistrationTitle(
+  registrationGuid: string,
+  title: string
+): Promise<void> {
+  const session = await registrationsSession();
+  await session.patch(`/v2/registrations/${registrationGuid}/`, {
+    data: {
+      id: registrationGuid,
+      type: 'registrations',
+      attributes: { title },
+    },
+  });
+}
+
+/**
+ * Replaces a registration's subjects with the given top-level subject names (looked
+ * up in the OSF registries provider's taxonomy, which is what the metadata page's
+ * subject tree shows). No Python original - added so `add top level subject` can
+ * reset the fixture registration to a known baseline; see that test's comment.
+ */
+export async function updateRegistrationSubjects(
+  registrationGuid: string,
+  subjectNames: string[]
+): Promise<void> {
+  const session = await registrationsSession();
+  const ids: string[] = [];
+  for (const name of subjectNames) {
+    const data = await session.get('/v2/providers/registrations/osf/subjects/', {
+      'filter[text]': name,
+      'page[size]': 100,
+    });
+    const match = (data.data as any[]).find((subject: any) => subject.attributes.text === name);
+    if (!match) throw new Error(`Subject not found in the osf registries taxonomy: ${name}`);
+    ids.push(match.id);
+  }
+  await session.put(`/v2/registrations/${registrationGuid}/relationships/subjects/`, {
+    data: ids.map((id) => ({ type: 'subjects', id })),
+  });
+}
