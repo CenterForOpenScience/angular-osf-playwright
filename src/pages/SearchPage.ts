@@ -278,6 +278,26 @@ export class SearchPage extends BasePage {
       .nth(Number(index) - 1);
   }
 
+  /** Exact-name match ("Book (18)" but not "BookChapter (1)"), unlike picking by list position. */
+  optionByName(name: string): Locator {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return this.page
+      .locator('ul[role="listbox"] li[role="option"]')
+      .filter({ hasText: new RegExp(`^\\s*${escaped}\\s*\\(\\d+\\)\\s*$`) });
+  }
+
+  /**
+   * Asserts every result card mentions `text`. Checking that the value shows up on
+   * *some* card isn't enough - popular values (e.g. the suite's own test users and
+   * institution) already appear on the unfiltered first page, so that passes whether
+   * or not the filter was applied.
+   */
+  async expectEveryResultCardToContain(text: string): Promise<void> {
+    const cards = this.page.locator('osf-resource-card');
+    await expect(cards.first()).toBeVisible();
+    await expect(cards.filter({ hasNotText: text })).toHaveCount(0);
+  }
+
   // ---------------------------------------------------------------------------
   // Port of `SearchPageHelpers`
   // ---------------------------------------------------------------------------
@@ -344,8 +364,7 @@ export class SearchPage extends BasePage {
     await this.waitForResultsLoad();
     const resultCountAfterFilterApplying = await this.getResultsCount();
     expect(resultCountAfterFilterApplying).toBeLessThanOrEqual(numberOfUsers as number);
-    const recordLocator = this.page.locator('p-accordion-panel a', { hasText: nameOfRecord }).first();
-    await expect(recordLocator).toBeVisible();
+    await this.expectEveryResultCardToContain(nameOfRecord);
   }
 
   async checkFilteringByDateCreated(dateCreatedRegistered: string): Promise<void> {
@@ -511,26 +530,44 @@ export class SearchPage extends BasePage {
     await expect(recordLocator).toContainText(nameOfRecord);
   }
 
+  /**
+   * Selects `resourceType` by exact option name. The original port picked whichever
+   * option came first (callers passed `''`) and then only looked for any `<p>`
+   * containing e.g. "Registration" - which every card's type badge on that tab already
+   * matches, filtered or not.
+   *
+   * Registration cards don't render a "Resource type:" line at all (verified live), so
+   * pass `verifyOnCard: false` there - the applied-filter chip plus the result count
+   * dropping to the option's count is then the proof the filter took effect.
+   */
   async checkFilteringByResourceType(
-    resourceTypeOption: string,
-    displayedResourceTypeOption: string
+    resourceType: string,
+    { verifyOnCard = true }: { verifyOnCard?: boolean } = {}
   ): Promise<void> {
     await this.resourceTypeMenu.click();
     await this.resourceTypeMultiselectDropdown.click();
-    await this.multiselectFilterInput.fill(resourceTypeOption);
-    if (!(await present(this.optionByIndex('1')))) {
-      test.skip(true, 'Record was not found in the list');
+    await this.multiselectFilterInput.fill(resourceType);
+    const option = this.optionByName(resourceType);
+    if (!(await present(option))) {
+      test.skip(true, `Resource type "${resourceType}" was not found in the list`);
     }
-    const numberOfRecords = await this.getRecordCount('1');
-    await this.optionCheckboxByIndex('1').click({ force: true });
+    const numberOfRecords = await this.pollForRecordCount(option);
+    await option.locator('input[type="checkbox"]').click({ force: true });
     await this.waitForResultsLoad();
     const resultCountAfterFilterApplying = await this.getResultsCount();
     expect(resultCountAfterFilterApplying).toBeLessThanOrEqual(numberOfRecords as number);
-    await this.chevronMenuFirstCard.click();
-    const resourceTypeInCardLocator = this.page
-      .locator('p', { hasText: displayedResourceTypeOption })
-      .first();
-    await expect(resourceTypeInCardLocator).toBeVisible();
+    await expect(
+      this.page.locator('.p-chip-label', { hasText: `Resource type: ${resourceType}` })
+    ).toBeVisible();
+    if (verifyOnCard) {
+      await this.chevronMenuFirstCard.click();
+      const resourceTypeInCard = this.page
+        .locator('osf-resource-card')
+        .first()
+        .locator('p', { hasText: 'Resource type:' })
+        .filter({ visible: true });
+      await expect(resourceTypeInCard).toContainText(resourceType);
+    }
   }
 
   async checkFilteringByAdditionalOptions(
@@ -581,10 +618,13 @@ export class SearchPage extends BasePage {
     const resultCountWithoutFilter = await this.getResultsCount();
     await this.dateCreatedMenu.click();
     await this.dateCreatedMultiselectDropdown.click();
+    // Compare against the option's own count, not the unfiltered total - "<= total"
+    // also holds when the filter silently isn't applied at all.
+    const numberOfRecords = await this.getRecordCount('1');
     await this.optionCheckboxByIndex('1').click({ force: true });
     await this.waitForResultsLoad();
     const resultCountAfterFilterApplying = await this.getResultsCount();
-    expect(resultCountAfterFilterApplying).toBeLessThanOrEqual(resultCountWithoutFilter as number);
+    expect(resultCountAfterFilterApplying).toBeLessThanOrEqual(numberOfRecords as number);
     await this.page.locator('span.p-chip-remove-icon').click();
     await this.waitForResultsLoad();
     // waitForResultsLoad's spinner-based wait can race ahead of the Angular
@@ -598,28 +638,78 @@ export class SearchPage extends BasePage {
       .toBe(resultCountWithoutFilter);
   }
 
-  async checkSortingByCreatedDate(createdRegistered: string): Promise<void> {
-    await this.sortByButton.click();
-    await this.sortByDateCreatedNewest.click();
-    let dates = await this.getDates(`Date "${createdRegistered}"`);
-    this.assertSorting(dates, 'descending');
+  /**
+   * Clicks a results tab and waits for the `index-card-search` request that click fires
+   * to complete, then for the re-rendered cards. A bare `tabLink.click()` followed by a
+   * count read can still see the previous tab's total (seen live: the All tab's 13 read
+   * as the Projects tab's baseline), so use this wherever a count is read right after
+   * switching tabs.
+   */
+  async openTab(tabLink: Locator): Promise<void> {
+    const request = this.page.waitForRequest((req) => req.url().includes('index-card-search'));
+    await tabLink.click();
+    await (await request).response();
+    await expect(this.searchResults.first()).toBeVisible();
+  }
 
+  /**
+   * Picks a sort option and waits for the SHARE `index-card-search` response carrying
+   * that exact `sort` value (e.g. `-dateCreated`), then for the re-rendered cards.
+   * Selecting an option clears the result list immediately and refills it only once
+   * that response lands - reading the cards straight after the click (as the original
+   * port did) sees an empty list, which every sort assertion vacuously passes on.
+   */
+  async applySort(option: Locator, sortParam: string): Promise<void> {
+    const response = this.page.waitForResponse(
+      (res) =>
+        res.url().includes('index-card-search') &&
+        new URL(res.url()).searchParams.get('sort') === sortParam
+    );
     await this.sortByButton.click();
-    await this.sortByDateCreatedOldest.click();
-    dates = await this.getDates(`Date "${createdRegistered}"`);
-    this.assertSorting(dates, 'ascending');
+    await option.click();
+    await response;
+    await expect(this.searchResults.first()).toBeVisible();
+  }
+
+  /**
+   * Sorting can't be verified with fewer than two results - skip visibly rather than
+   * pass on nothing. Callers switching tabs first must use `openTab` so this doesn't
+   * read the previous tab's count.
+   */
+  private async skipIfTooFewResultsToSort(): Promise<void> {
+    await expect(this.searchResults.first()).toBeVisible();
+    const resultCount = await this.getResultsCount();
+    if ((resultCount ?? 0) < 2) {
+      test.skip(true, `Only ${resultCount} result(s) - not enough to verify sorting`);
+    }
+  }
+
+  /**
+   * `created` / `registered` / `['created', 'registered']` select which card date line
+   * the created-date sort is checked against - registration cards label their creation
+   * date "Date registered", so mixed-type tabs pass both.
+   */
+  async checkSortingByCreatedDate(createdRegistered: string | string[]): Promise<void> {
+    const labels = (Array.isArray(createdRegistered) ? createdRegistered : [createdRegistered]).map(
+      (label) => `Date ${label}`
+    );
+    await this.skipIfTooFewResultsToSort();
+
+    await this.applySort(this.sortByDateCreatedNewest, '-dateCreated');
+    this.assertSorting(await this.getDates(labels), 'descending');
+
+    await this.applySort(this.sortByDateCreatedOldest, 'dateCreated');
+    this.assertSorting(await this.getDates(labels), 'ascending');
   }
 
   async checkSortingByModifiedDate(): Promise<void> {
-    await this.sortByButton.click();
-    await this.sortByDateModifiedNewest.click();
-    let dates = await this.getDates('Date modified');
-    this.assertSorting(dates, 'descending');
+    await this.skipIfTooFewResultsToSort();
 
-    await this.sortByButton.click();
-    await this.sortByDateModifiedOldest.click();
-    dates = await this.getDates('Date modified');
-    this.assertSorting(dates, 'ascending');
+    await this.applySort(this.sortByDateModifiedNewest, '-dateModified');
+    this.assertSorting(await this.getDates('Date modified'), 'descending');
+
+    await this.applySort(this.sortByDateModifiedOldest, 'dateModified');
+    this.assertSorting(await this.getDates('Date modified'), 'ascending');
   }
 
   async checkSearchInFilteringOptions(recordIndex = '1'): Promise<void> {

@@ -46,15 +46,32 @@ export abstract class BasePage {
   }
 
 
-  async getDates(labelText: string): Promise<Date[]> {
-    const texts = await this.page
-      .locator('p', { hasText: `${labelText}:` })
-      .allInnerTexts();
-    return texts.map((text) => new Date(text.replace(`${labelText}: `, '').trim()));
+  /**
+   * Reads every "<label>: <Month D, YYYY>" date line on the page, in DOM order. Several
+   * labels can be passed for mixed-type result lists (e.g. `['Date created', 'Date
+   * registered']` - registration cards show their creation date under the latter).
+   * Throws on an unparseable date rather than letting `Invalid Date` (NaN) through, since
+   * NaN compares equal to itself in `assertSorting` and would hide a broken read.
+   */
+  async getDates(labelText: string | string[]): Promise<Date[]> {
+    const labels = Array.isArray(labelText) ? labelText : [labelText];
+    const labelPattern = new RegExp(`^\\s*(?:${labels.join('|')}):\\s*`);
+    const texts = await this.page.locator('p', { hasText: labelPattern }).allInnerTexts();
+    return texts.map((text) => {
+      const value = text.replace(labelPattern, '').trim();
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        throw new Error(`Could not parse date "${value}" from "${text}"`);
+      }
+      return date;
+    });
   }
 
   /** Port of `pages/base.py`'s `BasePage.assert_sorting`. */
   assertSorting(dates: Date[], order: 'ascending' | 'descending' = 'ascending'): void {
+    // An empty or single-item list is trivially "sorted" - require real data so a
+    // selector that stops matching fails loudly instead of passing vacuously.
+    expect(dates.length, 'need at least two dates to verify sorting').toBeGreaterThan(1);
     const times = dates.map((date) => date.getTime());
     const sortedAscending = [...times].sort((a, b) => a - b);
     const expected = order === 'ascending' ? sortedAscending : [...sortedAscending].reverse();
