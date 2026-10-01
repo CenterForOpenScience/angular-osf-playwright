@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, Download } from '@playwright/test';
 
 import * as settings from '../../config/settings';
 
@@ -147,6 +147,47 @@ export async function clickExpectingPopup(page: Page, locator: Locator): Promise
   const [popup] = await Promise.all([page.context().waitForEvent('page'), locator.click()]);
   await popup.waitForLoadState();
   return popup;
+}
+
+/**
+ * Runs `action` and resolves with the download it triggers, whether the download starts in
+ * `page` itself or in a popup tab opened by it. OSF's download links open a new tab on some
+ * browsers (e.g. Edge), and Playwright emits `download` on that popup page - so a plain
+ * `page.waitForEvent('download')` on the original page never fires there.
+ */
+export async function waitForDownload(
+  page: Page,
+  action: () => Promise<void>,
+  timeout: number = settings.TIMEOUT_MS
+): Promise<Download> {
+  const context = page.context();
+  let onPage: ((p: Page) => void) | undefined;
+  let onDownload: ((d: Download) => void) | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const pages: Page[] = [page];
+
+  const downloadPromise = new Promise<Download>((resolve, reject) => {
+    onDownload = resolve;
+    onPage = (p: Page) => {
+      pages.push(p);
+      p.once('download', resolve);
+    };
+    page.once('download', resolve);
+    context.on('page', onPage);
+    timer = setTimeout(
+      () => reject(new Error(`Timed out after ${timeout}ms waiting for a download in the page or a popup`)),
+      timeout
+    );
+  });
+
+  try {
+    await action();
+    return await downloadPromise;
+  } finally {
+    clearTimeout(timer);
+    context.off('page', onPage!);
+    for (const p of pages) p.off('download', onDownload!);
+  }
 }
 
 /**

@@ -3,7 +3,7 @@ import { Page, Locator } from '@playwright/test';
 import { FilesPage } from '../src/pages/FilesPage';
 import * as osfApi from '../src/api/osfApi';
 import * as settings from '../config/settings';
-import { present, clickExpectingPopup } from '../src/utils';
+import { present, clickExpectingPopup, waitForDownload } from '../src/utils';
 import fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -78,10 +78,7 @@ async function verifyFileDownload(
 
     // The menu overlay renders outside the row (PrimeNG overlay), so scope to page, not row
     const downloadButton = page.locator('li#download'); // overlay renders via appendto="body", outside row
-    const downloadPromise = page.waitForEvent('download');
-
-    await downloadButton.click();
-    const download = await downloadPromise;
+    const download = await waitForDownload(page, () => downloadButton.click());
 
     // Save it explicitly to a known path (or just verify via the Download object's own API)
     const downloadPath = path.join(os.homedir(), 'Downloads', fileName);
@@ -102,74 +99,109 @@ async function verifyFileDownload(
     expect(fileModDate.toDateString()).toBe(currentDate.toDateString());
 }
 
-type SortCase = {
-        title: string;
-        sortOption: string;
-        /** File name prefixes, uploaded in this order (order matters for the date tests). */
-        prefixes: string[];
-        column: 'name' | 'modified';
-        order: 'asc' | 'desc';
-    };
-
-    const SORT_CASES: SortCase[] = [
-        {
-            title: 'sort name A to Z',
-            sortOption: 'Name: A-Z',
-            prefixes: ['1', 'ZZ', '2'],
-            column: 'name',
-            order: 'asc',
-        },
-        {
-            title: 'sort name Z to A',
-            sortOption: 'Name: Z-A',
-            prefixes: ['1', '2', 'ZZ'],
-            column: 'name',
-            order: 'desc',
-        },
-        {
-            // NOTE: kept exactly as the Selenium test: the name says "descending",
-            // but it selects oldest -> newest and asserts ascending order.
-            title: 'sort modified date descending',
-            sortOption: 'Last modified: oldest to newest',
-            prefixes: ['Oldest', 'Newest'],
-            column: 'modified',
-            order: 'asc',
-        },
-        {
-            // NOTE: same naming mismatch as above, in reverse.
-            title: 'sort modified date ascending',
-            sortOption: 'Last modified: newest to oldest',
-            prefixes: ['Oldest', 'Newest'],
-            column: 'modified',
-            order: 'desc',
-        },
-    ];
-
-const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-    
-
-function parseOsfDate(text: string): number {
-  const m = text.trim().match(/^([A-Za-z]{3}) (\d{1,2}), (\d{2}) (\d{1,2}):(\d{2}) ([AP]M)$/i);
-  if (!m) throw new Error(`Unexpected date format: "${text}"`);
-  const [, mon, day, yy, hh, mm, ampm] = m;
-  let hour = Number(hh) % 12;
-  if (ampm.toUpperCase() === 'PM') hour += 12;
-  return new Date(2000 + Number(yy), MONTHS.indexOf(mon.toLowerCase()), Number(day), hour, Number(mm)).getTime();
+const ROWS = 'osf-files-tree-row div.files-table-row';
+ 
+/** Date format shown in the "last modified" column, e.g. "Aug 13, 2026 11:56 AM". */
+const DATE_FORMAT = /^[A-Z][a-z]{2} \d{1,2}, \d{4} \d{1,2}:\d{2} [AP]M$/;
+ 
+type Column = 'name' | 'modified';
+type Order = 'asc' | 'desc';
+type SortOption = { label: string; column: Column; order: Order };
+ 
+const NAME_A_Z: SortOption = { label: 'Name: A-Z', column: 'name', order: 'asc' };
+const NAME_Z_A: SortOption = { label: 'Name: Z-A', column: 'name', order: 'desc' };
+const OLDEST_FIRST: SortOption = { label: 'Last modified: oldest to newest', column: 'modified', order: 'asc' };
+const NEWEST_FIRST: SortOption = { label: 'Last modified: newest to oldest', column: 'modified', order: 'desc' };
+ 
+// `opposite` is selected first, so the test proves the dropdown really changes the order
+// (the page is already sorted A-Z by default, which would otherwise pass without doing anything).
+const SORT_CASES: { title: string; sort: SortOption; opposite: SortOption }[] = [
+  { title: 'sort name A to Z', sort: NAME_A_Z, opposite: NAME_Z_A },
+  { title: 'sort name Z to A', sort: NAME_Z_A, opposite: NAME_A_Z },
+  // NOTE: titles kept from the Selenium test, even though they are swapped vs. what they select.
+  { title: 'sort modified date descending', sort: OLDEST_FIRST, opposite: NEWEST_FIRST },
+  { title: 'sort modified date ascending', sort: NEWEST_FIRST, opposite: OLDEST_FIRST },
+];
+ 
+// ---------- helpers ----------
+ 
+type Row = { name: string; dateText: string };
+ 
+/** Reads every row on the page: its name and its "last modified" text (empty for folders). */
+async function readRows(page: Page): Promise<Row[]> {
+  // Reads all rows in one go, so each name and date come from the same row
+  // and from the same moment (not half before and half after a re-render).
+  return page.locator(ROWS).evaluateAll((rows) =>
+    rows.map((row) => {
+      const nameCell = row.querySelector('.entry-title') ?? row.querySelector(':scope > .table-cell');
+      const cells = row.querySelectorAll(':scope > .files-table-cell');
+      return {
+        name: (nameCell?.textContent ?? '').trim(),
+        dateText: (cells[2]?.textContent ?? '').trim(), // 3rd files-table-cell, as in the Selenium XPath
+      };
+    }),
+  );
 }
-
-function isSorted(keys: (string | number)[], order: SortCase['order']): boolean {
-  return keys.every((key, i) => i === 0 || (order === 'asc' ? keys[i - 1] <= key : keys[i - 1] >= key));
+ 
+/** Case-insensitive name comparison, same as Python's sorted(key=str.lower). */
+function compareNames(a: string, b: string): number {
+  const x = a.toLowerCase();
+  const y = b.toLowerCase();
+  return x < y ? -1 : x > y ? 1 : 0;
 }
-
-/** Reads the column as sortable keys (lowercased names, like key=str.lower, or timestamps). */
-async function readSortKeys(page: Page, column: SortCase['column']): Promise<(string | number)[]> {
-  if (column === 'name') {
-    const texts = await page.locator('span.entry-title').allInnerTexts();
-    return texts.map((t) => t.trim().toLowerCase());
+ 
+/**
+ * Checks any list of rows against a sort option, comparing each row with the next one.
+ * Equal values may be in either order. Rows without a date (folders) are ignored when
+ * sorting by date. Returns null when sorted, otherwise a description of the first problem.
+ */
+function findSortProblem(rows: Row[], sort: SortOption): string | null {
+  const items =
+    sort.column === 'name'
+      ? rows.map((r) => ({ label: r.name, value: r.name }))
+      : rows.filter((r) => r.dateText !== '').map((r) => ({ label: `${r.name} (${r.dateText})`, value: r.dateText }));
+ 
+  for (let i = 1; i < items.length; i++) {
+    const prev = items[i - 1];
+    const cur = items[i];
+    let cmp: number;
+    if (sort.column === 'name') {
+      cmp = compareNames(prev.value, cur.value);
+    } else {
+      for (const item of [prev, cur]) {
+        if (!DATE_FORMAT.test(item.value)) return `not a date: "${item.label}" - check the date column locator`;
+      }
+      cmp = Date.parse(prev.value) - Date.parse(cur.value);
+    }
+    if (sort.order === 'asc' ? cmp > 0 : cmp < 0) {
+      return `"${prev.label}" is shown before "${cur.label}"`;
+    }
   }
-  const texts = await page.locator('xpath=//div[@class="files-table-cell"][3]').allInnerTexts();
-  return texts.map(parseOsfDate);
+  return null;
 }
+ 
+/** Picks a sort option and retries until all `rowCount` rows are shown in that order. */
+async function sortAndVerify(page: Page, filesPage: { selectSortFromList(o: string): Promise<void> }, sort: SortOption, rowCount: number) {
+  await filesPage.selectSortFromList(sort.label);
+ 
+  // The rows on the page must be in this option's order
+  await expect
+    .poll(
+      async () => {
+        const rows = await readRows(page);
+        // Guard against reading a half-rendered list, which would look "sorted"
+        if (rows.length !== rowCount) return `expected ${rowCount} rows, found ${rows.length}`;
+        return findSortProblem(rows, sort) ?? 'sorted';
+      },
+      { message: `list should be sorted by "${sort.label}"` },
+    )
+    .toBe('sorted');
+ 
+  // Shows what the test actually saw, so you can compare it with the page while debugging
+  const rows = await readRows(page);
+  console.log(`[${sort.label}]\n` + rows.map((r) => `  ${r.name}  |  ${r.dateText || '-'}`).join('\n'));
+}
+ 
 
 // Example parameterized test replacing python's provider fixture
 const UNSUPPORTED_PROVIDERS = ['bitbucket', 'dataverse', 'figshare', 'gitlab', 'onedrive', 'googledrive'];
@@ -182,7 +214,7 @@ test.describe('Project Files Page', { tag: '@core' }, () => {
     });
 
     for (const provider of providers) {
-        test(`Download a single file from ${provider}`, async ({ page, filesPage }) => {
+        test(`download a single file from ${provider}`, async ({ page, filesPage }) => {
             test.skip(UNSUPPORTED_PROVIDERS.includes(provider), 'Functionality not supported');
             // Substitute with your actual project ID or fixture login
             const currentBrowser = page.context().browser()?.browserType().name();
@@ -190,7 +222,6 @@ test.describe('Project Files Page', { tag: '@core' }, () => {
             const fileName = 'download_' + currentBrowserName + '_' + provider + '.txt';
 
             if (provider !== 'osfstorage') {
-                //await filesPage.selectAddon.click();
                 await filesPage.selectFromAddonList(provider);
             }
 
@@ -202,7 +233,7 @@ test.describe('Project Files Page', { tag: '@core' }, () => {
     }
 
     for (const provider of providers) {
-        test(`Download a folder from ${provider}`, async ({ page, filesPage }) => {
+        test(`download a folder from ${provider}`, async ({ page, filesPage }) => {
             test.skip(UNSUPPORTED_PROVIDERS.includes(provider), 'Functionality not supported');
             // Substitute with your actual project ID or fixture login
             const currentBrowser = page.context().browser()?.browserType().name();
@@ -210,7 +241,6 @@ test.describe('Project Files Page', { tag: '@core' }, () => {
             const folderName = 'download_' + currentBrowserName + '_' + provider ;
 
             if (provider !== 'osfstorage') {
-                //await filesPage.selectAddon.click();
                 await filesPage.selectFromAddonList(provider);
             }
 
@@ -235,10 +265,7 @@ test.describe('Project Files Page', { tag: '@core' }, () => {
             
             // The menu overlay renders outside the row (PrimeNG overlay), so scope to page, not row
             const downloadButton = page.locator('li#download'); // overlay renders via appendto="body", outside row
-            const downloadPromise = page.waitForEvent('download');
-
-            await downloadButton.click();
-            const download = await downloadPromise;
+            const download = await waitForDownload(page, () => downloadButton.click());
 
             // Save it explicitly to a known path (or just verify via the Download object's own API)
             const downloadFolderName = folderName+'.zip'
@@ -248,7 +275,6 @@ test.describe('Project Files Page', { tag: '@core' }, () => {
             await filesPage.reload();
 
             if (provider !== 'osfstorage') {
-                //await filesPage.selectAddon.click();
                 await filesPage.selectFromAddonList(provider);
             }
 
@@ -266,15 +292,13 @@ test.describe('Project Files Page', { tag: '@core' }, () => {
 })
 
 for (const provider of providers) {
-    test(`Download as a zip from ${provider}`, async ({ page, filesPage }) => {
+    test(`download as a zip from ${provider}`, async ({ page, filesPage }) => {
         test.skip(UNSUPPORTED_PROVIDERS.includes(provider), 'Functionality not supported');
-        // Substitute with your actual project ID or fixture login
         const currentBrowser = page.context().browser()?.browserType().name();
         const currentBrowserName: string = currentBrowser === 'chromium' ? 'chrome' : (currentBrowser ?? 'unknown');
         const folderName = 'download_' + currentBrowserName + '_' + provider;
 
         if (provider !== 'osfstorage') {
-            //await filesPage.selectAddon.click();
             await filesPage.selectFromAddonList(provider);
         }
 
@@ -295,11 +319,7 @@ for (const provider of providers) {
 
 
         // The menu overlay renders outside the row (PrimeNG overlay), so scope to page, not row
-        //const downloadButton = page.locator('li#download'); // overlay renders via appendto="body", outside row
-        const downloadPromise = page.waitForEvent('download');
-
-        await filesPage.clickOnButton('Download As Zip')
-        const download = await downloadPromise;
+        const download = await waitForDownload(page, () => filesPage.clickOnButton('Download As Zip'));
 
         // Save it explicitly to a known path (or just verify via the Download object's own API)
         const downloadFolderName = folderName + '.zip'
@@ -309,7 +329,6 @@ for (const provider of providers) {
         await filesPage.reload();
 
         if (provider !== 'osfstorage') {
-            //await filesPage.selectAddon.click();
             await filesPage.selectFromAddonList(provider);
         }
 
@@ -325,7 +344,7 @@ for (const provider of providers) {
 }
 
 for (const provider of providers) {
-    test(`Top level Download as zip from ${provider}`, async ({ page, filesPage, defaultAddonsProject }) => {
+    test(`top level download as zip from ${provider}`, async ({ page, filesPage, defaultAddonsProject }) => {
         test.skip(UNSUPPORTED_PROVIDERS.includes(provider), 'Functionality not supported');
         // Substitute with your actual project ID or fixture login
         //const node_id = defaultAddonsProject.id;
@@ -337,10 +356,7 @@ for (const provider of providers) {
             await filesPage.selectFromAddonList(provider);
         }
     
-        const downloadPromise = page.waitForEvent('download');
-
-        await filesPage.clickOnButton('Download As Zip')
-        const download = await downloadPromise;
+        const download = await waitForDownload(page, () => filesPage.clickOnButton('Download As Zip'));
 
         // Save it explicitly to a known path (or just verify via the Download object's own API)
         //const downloadFolderName = folderName + '.zip'
@@ -350,7 +366,6 @@ for (const provider of providers) {
         await filesPage.reload();
 
         if (provider !== 'osfstorage') {
-            //await filesPage.selectAddon.click();
             await filesPage.selectFromAddonList(provider);
         }
 
@@ -364,29 +379,25 @@ for (const provider of providers) {
     });
 }
 
-test.describe('Files page sort', () => {
+test.describe('Files Page Sort', () => {
   for (const provider of providers) {
-    for (const sortCase of SORT_CASES) {
-      test(`${sortCase.title} - ${provider}`, async ({ page, filesPage, session, browserName }) => {
+    for (const { title, sort, opposite } of SORT_CASES) {
+      test(`${title} - ${provider}`, async ({ page, filesPage, defaultProject, session }) => {
         test.skip(UNSUPPORTED_PROVIDERS.includes(provider), 'Functionality not supported');
  
-        // Upload each test file, in order
-        const fileNames = sortCase.prefixes.map((p) => `${p} AQA_${provider}.txt`);
- 
         if (provider !== 'osfstorage') {
-          //await filesPage.selectAddon.click();
           await filesPage.selectFromAddonList(provider);
         }
  
-        await filesPage.selectSortFromList(sortCase.sortOption);
+         // Replaces wait_until_page_ready: wait for the list, then count what is there
+        await expect(page.locator(ROWS).first()).toBeVisible();
+        const rows = await readRows(page);
+        expect(rows.every((r) => r.name !== ''), 'a row has no name - check the name locator').toBe(true);
+        const comparable = sort.column === 'name' ? rows : rows.filter((r) => r.dateText !== '');
+        expect(comparable.length, `need at least 2 ${sort.column === 'name' ? 'items' : 'dated files'} in ${provider}`).toBeGreaterThanOrEqual(2);
  
-        // Replaces time.sleep + one-shot assert: retry until the list re-renders sorted
-        await expect
-          .poll(async () => {
-            const keys = await readSortKeys(page, sortCase.column);
-            return isSorted(keys, sortCase.order) ? 'sorted' : `not sorted: ${keys.join(' | ')}`;
-          })
-          .toBe('sorted');
+        await sortAndVerify(page, filesPage, opposite, rows.length);
+        await sortAndVerify(page, filesPage, sort, rows.length);
       });
     }
   }
