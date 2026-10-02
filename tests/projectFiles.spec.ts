@@ -204,9 +204,9 @@ async function sortAndVerify(page: Page, filesPage: { selectSortFromList(o: stri
  
 
 // Example parameterized test replacing python's provider fixture
-const UNSUPPORTED_PROVIDERS = ['bitbucket', 'dataverse', 'figshare', 'gitlab', 'onedrive', 'googledrive'];
+const UNSUPPORTED_PROVIDERS = ['bitbucket', 'dataverse', 'figshare', 'gitlab', 'onedrive'];
 const providers = ['osfstorage', 's3', 'box', 'bitbucket', 'dataverse', 'dropbox', 'figshare', 'github', 'gitlab', 'googledrive', 'onedrive', 'owncloud'];
-//const providers = ['osfstorage'];
+//const providers = ['googledrive'];
 
 test.describe('Project Files Page', { tag: '@core' }, () => {
   test.beforeEach(() => {

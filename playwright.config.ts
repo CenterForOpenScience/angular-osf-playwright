@@ -43,24 +43,24 @@ export default defineConfig({
     navigationTimeout: settings.LONG_TIMEOUT_MS,
   },
   projects: [
-    // {
-    //   name: 'chromium',
-    //   use: { ...devices['Desktop Chrome'] },
-    // },
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
     // {
     //   name: 'firefox',
     //   use: { ...devices['Desktop Firefox'] },
     // },
-    {
-      name: 'edge',
-      use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    },
-    {
-      // Playwright's WebKit engine - the closest thing to Safari available
-      // cross-platform (real Safari automation only runs on macOS).
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
+    // {
+    //   name: 'edge',
+    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
+    // },
+    // {
+    //   // Playwright's WebKit engine - the closest thing to Safari available
+    //   // cross-platform (real Safari automation only runs on macOS).
+    //   name: 'webkit',
+    //   use: { ...devices['Desktop Safari'] },
+    // },
 
   ],
 });

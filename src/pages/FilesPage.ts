@@ -70,12 +70,16 @@ export class FilesPage extends GuidBasePage {
   }
 
   async selectFromAddonList(selection: string): Promise<void> {
-    // Replaces explicit loops with direct text-based locators
     await this.selectAddon.nth(0).click();
+    // Provider keys (e.g. 'googledrive') may differ from the UI label ('Google Drive') only by
+    // whitespace, so allow optional whitespace between every character.
+    const pattern = Array.from(selection.replace(/\s+/g, ''))
+      .map((ch) => ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      .join('\\s*');
     const targetAddon = this.addonsList.filter({
-      hasText: new RegExp(`^\\s*${selection}\\s*$`, 'i'),
+      hasText: new RegExp(`^\\s*${pattern}\\s*$`, 'i'),
     });
-    await targetAddon.click();
+    await targetAddon.first().click();
   }
 
   async selectSortFromList(sortName: string): Promise<void> {
