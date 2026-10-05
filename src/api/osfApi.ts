@@ -1,3 +1,5 @@
+import { execFileSync } from 'child_process';
+
 import * as settings from '../../config/settings';
 import { createAddonSession, createSession, OsfApiError, OsfSession } from './session';
 
@@ -930,4 +932,120 @@ export async function updateRegistrationSubjects(
   await session.put(`/v2/registrations/${registrationGuid}/relationships/subjects/`, {
     data: ids.map((id) => ({ type: 'subjects', id })),
   });
+}
+
+/**
+ * Below: functions ported for `tests/test_institutions.py`.
+ */
+
+/** Port of `get_institution_metrics_summary`. Only readable by an admin of that institution. */
+export async function getInstitutionMetricsSummary(
+  session: OsfSession,
+  institutionId = 'cos'
+): Promise<any> {
+  const data = await session.get(`/v2/institutions/${institutionId}/metrics/summary/`);
+  return data.data;
+}
+
+/** Port of `get_institution_users_per_department`. Only readable by an admin of that institution. */
+export async function getInstitutionUsersPerDepartment(
+  session: OsfSession,
+  institutionId = 'cos',
+  department = 'QA'
+): Promise<any[]> {
+  const data = await session.get(`/v2/institutions/${institutionId}/metrics/users/`, {
+    'filter[department]': department,
+  });
+  return data.data;
+}
+
+/** Port of `get_all_institutions_data`. */
+export async function getAllInstitutionsData(session: OsfSession): Promise<any[]> {
+  const data = await session.get('/v2/institutions/');
+  return data.data;
+}
+
+/**
+ * Synchronous version of `getAllInstitutionsData` that returns only the ids, for
+ * building one test per institution while Playwright collects tests (collection is
+ * synchronous, so the async session can't be used there - the Python suite likewise
+ * called the API at pytest collection time). `/v2/institutions/` is public, so no
+ * auth is needed. The main runner process collects first and then spawns the
+ * workers with its env, so the ids are cached in an env var and fetched only once
+ * per run instead of once per worker.
+ *
+ * A failed fetch is cached too, and rethrown from the cache: every process must
+ * collect the same test list, and a worker whose own retry succeeded would register
+ * tests the runner never scheduled. The caller catches the error so a bad fetch
+ * fails only its own spec instead of aborting the whole run at load time.
+ */
+export function getAllInstitutionIdsSync(): string[] {
+  const cacheKey = 'OSF_INSTITUTION_IDS';
+  const cached = process.env[cacheKey];
+  if (!cached) {
+    process.env[cacheKey] = JSON.stringify(fetchInstitutionIdsSync());
+  }
+  const result: { ids?: string[]; error?: string } = JSON.parse(process.env[cacheKey] as string);
+  if (result.error !== undefined) {
+    throw new Error(`Could not fetch the institution list: ${result.error}`);
+  }
+  return result.ids as string[];
+}
+
+function fetchInstitutionIdsSync(): { ids?: string[]; error?: string } {
+  const url = `${settings.API_DOMAIN}/v2/institutions/`;
+  // Retries a throttled (429) response after its Retry-After, up to 3 attempts - the
+  // API is often still throttled from the previous spec when this one is collected.
+  const script =
+    'const get = async (attempt) => {' +
+    '  const r = await fetch(process.argv[1], { headers: { Accept: "application/vnd.api+json" } });' +
+    '  if (r.status === 429 && attempt < 3) {' +
+    '    const wait = Math.min(Number(r.headers.get("retry-after")) || 5, 90) + 1;' +
+    '    await new Promise((resolve) => setTimeout(resolve, wait * 1000));' +
+    '    return get(attempt + 1);' +
+    '  }' +
+    '  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);' +
+    '  return r.json();' +
+    '};' +
+    'get(1)' +
+    '.then((d) => process.stdout.write(JSON.stringify(d.data.map((i) => i.id))))' +
+    '.catch((e) => { process.stderr.write(String(e)); process.exit(1); });';
+  try {
+    const output = execFileSync(process.execPath, ['-e', script, url], {
+      encoding: 'utf-8',
+      timeout: 300000,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return { ids: JSON.parse(output) };
+  } catch (error) {
+    const stderr = (error as { stderr?: string }).stderr;
+    return { error: stderr?.trim() || String(error) };
+  }
+}
+
+/**
+ * Waits until test.osf.io stops throttling the API (`429 "Request was throttled.
+ * Expected available in N seconds."`, see `CLAUDE.md`). While throttled the app
+ * covers every page with a maintenance overlay, so tests fail on unrelated clicks
+ * and navigations. Uses the public `/v2/status/` endpoint and sleeps for the time
+ * the API asks for. Throws if the throttle outlasts `maxWaitMs`.
+ */
+export async function waitForApiThrottleToClear(maxWaitMs = 180000): Promise<void> {
+  const deadline = Date.now() + maxWaitMs;
+  for (;;) {
+    const response = await fetch(`${settings.API_DOMAIN}/v2/status/`, {
+      headers: { Accept: 'application/vnd.api+json' },
+    });
+    if (response.status !== 429) return;
+    const body = await response.text();
+    const seconds =
+      Number(response.headers.get('retry-after')) ||
+      Number(body.match(/available in (\d+) second/)?.[1]) ||
+      5;
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      throw new Error(`API still throttled after ${maxWaitMs / 1000}s: ${body}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, Math.min((seconds + 1) * 1000, remaining)));
+  }
 }

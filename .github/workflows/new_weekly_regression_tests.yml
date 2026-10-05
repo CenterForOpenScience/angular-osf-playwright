@@ -19,6 +19,7 @@ on:
           - test2
           - test3
           - test4
+          - uat1
           - stage1
           - stage2
           - stage3
@@ -31,6 +32,7 @@ on:
         type: choice
         options:
           - All
+          - Institutions
           - Login
           - Navbar
           - Profile
@@ -87,6 +89,7 @@ env:
   USER_ONE_TEST2_PAT: ${{ secrets.USER_ONE_TEST2_PAT }}
   USER_ONE_TEST3_PAT: ${{ secrets.USER_ONE_TEST3_PAT }}
   USER_ONE_TEST4_PAT: ${{ secrets.USER_ONE_TEST4_PAT }}
+  USER_ONE_UAT1_PAT: ${{ secrets.USER_ONE_UAT1_PAT }}
   USER_ONE_PAT: ${{ secrets.USER_ONE_PAT }}
   MENDELEY_EMAIL: ${{ secrets.MENDELEY_EMAIL }}
   MENDELEY_PASSWORD: ${{ secrets.MENDELEY_PASSWORD }}
@@ -170,6 +173,7 @@ jobs:
         id: test_path
         run: |
           case "${{ needs.set_variables.outputs.service }}" in
+            Institutions) echo "path=tests/institutions.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Login) echo "path=tests/login.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Navbar) echo "path=tests/navbar.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Profile) echo "path=tests/profile.spec.ts" >> "$GITHUB_OUTPUT" ;;
