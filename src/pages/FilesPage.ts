@@ -19,6 +19,8 @@ export class FilesPage extends GuidBasePage {
   readonly fileInput: Locator;
   readonly searchInput: Locator;
   readonly searchResults: Locator;
+  readonly sortDropdown: Locator;
+  readonly selectListContainer: Locator;
 
 
   constructor(
@@ -44,7 +46,10 @@ export class FilesPage extends GuidBasePage {
     this.fileInput = page.locator('input[type="file"]');
     this.searchInput = page.getByPlaceholder('Search your files');
     this.searchResults = page.locator('div.table-cell.flex.align-items-center');
+    this.sortDropdown = page.locator('div.p-select-dropdown').nth(1);
+    this.selectListContainer = page.locator('div.p-select-list-container');
   }
+
 
   get url(): string {
     return `${this.domain}/${FilesPage.baseUrl
@@ -116,5 +121,6 @@ export class FilesPage extends GuidBasePage {
     const matchingResults = this.searchResults.filter({ hasText: targetString });
     return matchingResults.all();
   }
+
 
 }
