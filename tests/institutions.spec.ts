@@ -25,14 +25,7 @@ import {
   verifyUserCard,
 } from '../src/utils/searchCards';
 
-/**
- * Port of `tests/test_institutions.py`. An institution's page renders the same
- * `osf-search-results-container` component as `/search`, so `InstitutionBrandedPage`
- * extends `SearchPage` and this spec drives it through the same `checkFilteringBy*` /
- * `checkSortingBy*` / `checkSearchInFilteringOptions` helpers `tests/search.spec.ts`
- * and `tests/profile.spec.ts` use. See `PLAYWRIGHT_MIGRATION_RULES.md` and the
- * README's "Notable differences" entry for what changed from the Python source.
- */
+
 
 const INSTITUTION_NAME = settings.TEST4 || settings.STAGE4 ? 'Exoft' : 'Center For Open Science';
 
@@ -85,10 +78,7 @@ async function checkSearchResultsExist(
   await expect(institutionPage.firstCardObjectTypeLabel).toHaveText(expectedType);
 }
 
-/**
- * Shared body of the Python `test_filtering_by_*` tests that select an "Additional
- * Filters" checkbox, then check the first result card's accordion for a link.
- */
+
 async function checkAdditionalFilterShownOnCard(
   page: Page,
   institutionPage: InstitutionBrandedPage,
@@ -147,9 +137,7 @@ test.describe('Institution Admin Dashboard Page', { tag: ['@core'] }, () => {
     test.skip(settings.PRODUCTION, 'Test should not run on production');
   });
 
-  // Needs the logged-in user (USER_ONE) set up as an admin of the COS institution
-  // through the OSF admin app - otherwise the API calls below fail with a 403 and the
-  // dashboard redirects to /forbidden. That was also why this test failed in Python.
+  
   test('institution admin dashboard', async ({ page, session, mustBeLoggedIn }) => {
     void mustBeLoggedIn;
     const apiQaUsers = await osfApi.getInstitutionUsersPerDepartment(session, 'cos', 'QA');
@@ -247,10 +235,7 @@ test.describe('Institution Page Search', { tag: ['@smoke', '@core'] }, () => {
       await institutionPage.checkFilteringByLicense();
     });
 
-    // Same approach as `search.spec.ts`'s all-tab version: every card's type badge has
-    // to match the selected type, since unfiltered results already include some. No
-    // "results <= option count" check: SHARE's resourceType facet count is one lower
-    // than the filtered search's own total (seen: 1410 vs 1411), a backend mismatch.
+   
     test('filtering by resource type on all tab', async ({ page, institutionPage }) => {
       await institutionPage.resourceTypeMenu.click();
       await institutionPage.resourceTypeMultiselectDropdown.click();
@@ -603,9 +588,7 @@ test.describe('Institution Page Search', { tag: ['@smoke', '@core'] }, () => {
       await institutionPage.checkFilteringByFunder();
     });
 
-    // Python passed '' (pick whatever option is first) - same fix as `search.spec.ts`:
-    // pick a named type, and skip the on-card check since registration cards have no
-    // "Resource type:" line.
+
     test('filtering by resource type on registrations tab', async ({ institutionPage }) => {
       await institutionPage.openTab(institutionPage.registrationsTabLink);
       await institutionPage.checkFilteringByResourceType('StudyRegistration', {
@@ -1161,11 +1144,7 @@ try {
 const LANDING_PAGE_TIMEOUT_MS = 3 * 180000 + settings.VERY_LONG_TIMEOUT_MS;
 
 test.describe('Institution Landing Pages', { tag: ['@core'] }, () => {
-  // Loading institution pages back to back gets test.osf.io to throttle the API
-  // after about ten pages (seen live: 429, Retry-After up to ~70s). A throttled page
-  // renders with an empty heading, so each test waits the throttle out and reloads
-  // (see below), and the block waits once more at the end so the next spec doesn't
-  // start throttled.
+
   test.beforeEach(async () => {
     test.setTimeout(LANDING_PAGE_TIMEOUT_MS);
   });
@@ -1187,10 +1166,7 @@ test.describe('Institution Landing Pages', { tag: ['@core'] }, () => {
     test(`institution landing page [${institutionId}]`, async ({ page }) => {
       const institutionPage = new InstitutionBrandedPage(page, institutionId);
       const namedHeading = institutionPage.institutionName.filter({ hasText: /\S/ });
-      // The heading comes from `/v2/institutions/<id>/`, which is throttled on its own
-      // scope - it can answer 429 while `/v2/status/` still answers 200 (seen live).
-      // So watch that request itself, and reload only when it was throttled: an empty
-      // heading after a normal response falls through to the assertion below and fails.
+
       const institutionResponses: Response[] = [];
       page.on('response', (response) => {
         if (response.url().startsWith(`${settings.API_DOMAIN}/v2/institutions/${institutionId}/`)) {

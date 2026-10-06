@@ -4,15 +4,7 @@ import * as settings from '../../config/settings';
 import { BasePage } from './BasePage';
 import { SearchPage } from './SearchPage';
 
-/**
- * Port of `pages/institutions.py`.
- *
- * The Python identities (`div[data-test-insitutions-header]`,
- * `img[data-test-institution-banner]`) are Ember-era attributes that no longer exist in
- * the Angular app - verified live via `tests/_debug_inspect.spec.ts` per `CLAUDE.md`. The
- * pages' own Angular components (`osf-institutions-list`, `osf-institutions-search`) are
- * used instead.
- */
+
 export class InstitutionsLandingPage extends BasePage {
   get url(): string {
     return `${settings.OSF_HOME}/institutions/`;
@@ -34,14 +26,7 @@ export class InstitutionsLandingPage extends BasePage {
     return this.identity.getByRole('link').filter({ has: this.page.locator('h2') });
   }
 
-  /**
-   * Types `name` into the search bar and waits for the list to show it first. A fill
-   * that lands before the list component has wired up its input handler (the
-   * `/institutions/` -> `/institutions` redirect is still settling) is silently
-   * ignored and the unfiltered list stays put, so the fill is retried until it takes.
-   * No `fill('')` in between: that fires its own (unfiltered) search, whose response
-   * can arrive after the real one and put the full list back (seen live).
-   */
+
   async searchFor(name: string): Promise<void> {
     await expect(async () => {
       await this.searchBar.fill(name);
@@ -52,12 +37,7 @@ export class InstitutionsLandingPage extends BasePage {
   }
 }
 
-/**
- * Port of `InstitutionBrandedPage` - an institution's own page (`/institutions/<id>`).
- * Extends `SearchPage` for the same reason `ProfilePage` does: the page renders the
- * same `osf-search-results-container` tabs/filters/results component as `/search`, so
- * the `checkFilteringBy*` / tab-link helpers ported there apply unchanged.
- */
+
 export class InstitutionBrandedPage extends SearchPage {
   constructor(
     page: Page,
@@ -79,15 +59,7 @@ export class InstitutionBrandedPage extends SearchPage {
   }
 }
 
-/**
- * Port of `InstitutionAdminDashboardPage`. NOT verified against the live DOM: none of
- * the test accounts in `.env` are admins of the COS institution on `test` (the
- * dashboard redirects them to `/forbidden`, and
- * `/v2/institutions/cos/metrics/summary/` returns 403). The locators below are
- * user-facing equivalents of the Angular-era XPaths the Python test itself uses.
- * The Python page object's `data-test-chart-title`/`data-test-kpi-*`/`_projects-count_*`
- * locators are Ember-era and were dropped.
- */
+
 export class InstitutionAdminDashboardPage extends BasePage {
   constructor(
     page: Page,
@@ -124,11 +96,7 @@ export class InstitutionAdminDashboardPage extends BasePage {
     });
   }
 
-  /**
-   * The big number above the "OSF Public and Private Projects" summary label. Takes
-   * the innermost `div` holding both that label and an `<h2>` (the last match in
-   * document order) - the Python version was `.../preceding::h2[1]`.
-   */
+
   get totalProjectsCount(): Locator {
     return this.page
       .locator('div')
