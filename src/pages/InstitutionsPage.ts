@@ -106,6 +106,7 @@ export class InstitutionAdminDashboardPage extends BasePage {
       .locator('h2');
   }
 
+  
   private get publicVsPrivatePanel(): Locator {
     return this.page
       .locator('p-accordion-panel')
