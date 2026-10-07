@@ -12,6 +12,7 @@
     "test:all-browsers": "playwright test --project=chromium --project=firefox --project=edge --project=webkit",
     "test:login": "playwright test tests/login.spec.ts",
     "test:user": "playwright test tests/user.spec.ts",
+    "test:institutions": "playwright test tests/institutions.spec.ts",
     "test:registration-metadata": "playwright test tests/registrationMetadata.spec.ts",
     "test:registration-sidebar": "playwright test tests/registrationSidebar.spec.ts",
     "test:test": "cross-env TEST_ENV=test playwright test",
@@ -22,7 +23,8 @@
     "test:stage2": "cross-env TEST_ENV=stage2 playwright test",
     "test:stage3": "cross-env TEST_ENV=stage3 playwright test",
     "test:stage4": "cross-env TEST_ENV=stage4 playwright test",
-    "test:prod": "cross-env TEST_ENV=prod playwright test",
+    "test:uat1": "cross-env TEST_ENV=uat1 playwright test",
+    "test:prod":"cross-env TEST_ENV=prod playwright test",
     "test:headed": "playwright test --headed",
     "report": "playwright show-report",
     "typecheck": "tsc --noEmit"

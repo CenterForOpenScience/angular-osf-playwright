@@ -94,6 +94,7 @@ export const TEST = DOMAIN === 'test';
 export const TEST2 = DOMAIN === 'test2';
 export const TEST3 = DOMAIN === 'test3';
 export const TEST4 = DOMAIN === 'test4';
+export const UAT1 = DOMAIN === 'uat1';
 export const PRODUCTION = DOMAIN === 'prod';
 
 export const FUNDER_INFO_URL =

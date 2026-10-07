@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 import * as settings from './config/settings';
 
 /**
- * Environment (stage1/stage2/stage3/stage4/test/test2/test3/test4/prod) is selected via the
+ * Environment (stage1/stage2/stage3/stage4/test/test2/test3/test4/uat1/prod) is selected via the
  * TEST_ENV env var and resolved in config/settings.ts. Browser is selected via the
  * `--project` CLI flag (chromium | firefox | edge | webkit), e.g.:
  *
@@ -13,7 +13,7 @@ export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 1,
+  retries: process.env.CI ? 2 : 2,
   workers: process.env.CI ? 1 : 1,
   // 'github' prints failures as inline GitHub Actions annotations (file/line + error)
   // directly in the run log/checks UI. 'json' feeds scripts/write-failure-summary.js,

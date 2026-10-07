@@ -36,6 +36,7 @@ npm run test:stage1      # TEST_ENV=stage1 (staging.osf.io)
 npm run test:stage2
 npm run test:stage3      # default when TEST_ENV is unset
 npm run test:stage4
+npm run test:uat1        # TEST_ENV=uat1 (uat1.osf.io)
 npm run test:prod
 
 # Browser shortcuts
@@ -77,7 +78,7 @@ against `TEST_ENV=prod`.
 
 ```
 config/
-  environments.ts   # domain map (stage1-4, test, test2, test3, test4, prod) - port of the `domains` dict in settings.py
+  environments.ts   # domain map (stage1-4, test, test2, test3, test4, uat1, prod) - port of the `domains` dict in settings.py
   settings.ts        # env-var driven settings - port of settings.py
 src/
   api/
@@ -97,6 +98,7 @@ src/
     index.ts           # port of tests/conftest.py fixtures via Playwright's test.extend
   utils/
     index.ts           # port of the utils.py helpers the above depend on
+    searchCards.ts     # search-result card validators shared by profile/institutions specs
 tests/
   login.spec.ts         # port of tests/test_login.py
   user.spec.ts          # port of tests/test_user.py
@@ -105,6 +107,7 @@ tests/
   navbar.spec.ts        # port of tests/test_navbar.py
   registrationSidebar.spec.ts  # port of tests/test_registration_sidebar.py
   registrationMetadata.spec.ts # port of tests/test_registration_metadata.py
+  institutions.spec.ts  # port of tests/test_institutions.py
 ```
 
 ## Migration status
@@ -125,7 +128,7 @@ tick it in **both** files.
 | 8 | Registration sidebar | `tests/test_registration_sidebar.py` | `tests/registrationSidebar.spec.ts` | [x] Migrated |
 | 9 | Preprints | `tests/test_preprints.py` | — | [ ] Not migrated |
 | 10 | Metadata | `tests/test_registration_metadata.py` | `tests/registrationMetadata.spec.ts` | [x] Migrated |
-| 11 | Institutions | `tests/test_institutions.py` | — | [ ] Not migrated |
+| 11 | Institutions | `tests/test_institutions.py` | `tests/institutions.spec.ts` | [x] Migrated |
 | 12 | My projects | `tests/test_my_projects.py` | — | [ ] Not migrated |
 | 13 | My registrations | `tests/test_my_registrations.py` | — | [ ] Not migrated |
 | 14 | My preprints | `tests/test_my_preprints.py` | — | [ ] Not migrated |
@@ -133,7 +136,7 @@ tick it in **both** files.
 | 16 | Registration user permissions | `tests/test_registration_user_permissions.py` | — | [ ] Not migrated |
 | 17 | Registries | `tests/test_registries.py` | — | [ ] Not migrated |
 
-Progress: **7 / 17** sections migrated.
+Progress: **8 / 17** sections migrated.
 
 ## Notable differences from the Python suite
 
@@ -184,9 +187,9 @@ Progress: **7 / 17** sections migrated.
   just extends it instead of re-implementing or duplicating them, so one
   `ProfilePage` instance covers both roles. `tests/test_profile.py`'s own
   `_validate_project_card`/etc. module-local helpers (near-identical to
-  `search.spec.ts`'s `verify*SearchCard` functions) are likewise duplicated locally
-  in `tests/profile.spec.ts` rather than imported across spec files, matching how
-  the Python source itself duplicates them per test module.
+  `search.spec.ts`'s `verify*SearchCard` functions) now live in
+  `src/utils/searchCards.ts`, shared with `tests/institutions.spec.ts` (see
+  Institutions below); `search.spec.ts` keeps its own copies.
 - **Registration sidebar**: `RegistrationPage.ts` (already used by `search.spec.ts` as
   a scoped port of the overview page) is extended in place with the rest of
   `pages/registries.py`/`components/registration.py` this section needs, rather than
@@ -243,5 +246,45 @@ Progress: **7 / 17** sections migrated.
     Funder Name dropdown itself searches ROR (`api.ror.org`), not SHARE.
   - Subjects/tags/affiliations save as you toggle them, so the tests wait for that save
     request before reloading instead of reloading straight away.
+- **Institutions**: ports all of `test_institutions.py` - 210 tests, the same count
+  pytest collects (121 plus one landing-page test per institution; 89 on `test`). An institution's page
+  (`/institutions/<id>`) renders the same `osf-search-results-container` component as
+  `/search`, so `InstitutionBrandedPage` (`src/pages/InstitutionsPage.ts`) extends
+  `SearchPage` the same way `ProfilePage` does. The Python module imported
+  `_validate_*_card` from `test_profile.py`; a spec can't import another spec here (its
+  tests would register twice), so those helpers moved out of `tests/profile.spec.ts`
+  into `src/utils/searchCards.ts`, and both specs import them from there. Other changes:
+  - The Python identities (`div[data-test-insitutions-header]`,
+    `img[data-test-institution-banner]`) are Ember-era and gone - replaced with the
+    `osf-institutions-list` / `osf-institutions-search` components (verified live).
+  - `select_institution()` (type the name, click the card) is kept as the
+    `institutionPage` fixture, including the `Exoft` substitution on test4/stage4.
+    `InstitutionsLandingPage.searchFor()` retries the fill until the list actually
+    filters: a fill that lands before the list component is ready is silently
+    ignored, and clicking "the first card" then opens the wrong institution (seen
+    live). The list locator also skips the sub-header's "Read more" link.
+  - `verifyUserCard` (shared helper) now waits for each profile tab's own
+    `index-card-search` response before reading its count, and allows a tab with
+    zero results (withdrawn/spam items count on the card but not on the profile).
+    It previously could read the All tab's total instead, and failed on a user whose
+    public preprints were all hidden from the profile.
+  - Tabs are opened with `SearchPage.openTab()` so the helpers don't read the previous
+    tab's results, and the resource-type tests use the named-option fix `search.spec.ts`
+    already made (`StudyRegistration` on registrations, `Book` on files/projects).
+    Python's projects-tab resource-type check used `==` on the count; it's `<=` here
+    because of SHARE's off-by-one facet counts (see `CLAUDE.md`).
+  - Users-tab sorting checks the sort request and re-render only, like `search.spec.ts`
+    (user cards show no dates).
+  - `test_institution_landing_page` is parametrized per institution, like pytest's
+    `@pytest.mark.parametrize` from an API call at collection time. Playwright collects
+    tests synchronously, so `osfApi.getAllInstitutionIdsSync()` fetches the public
+    `/v2/institutions/` list in a short child process, and caches it in an env var so
+    workers don't fetch it again.
+  - `institution admin dashboard` could not be verified live: no account in `.env` is
+    a COS admin on `test` (the dashboard redirects to `/forbidden`, the metrics API
+    returns 403). It needs USER_ONE set up as a COS institution admin. Its locators are
+    user-facing versions of the Angular XPaths in the Python test. The Python page
+    object's Ember `data-test-*` / hashed-class locators were dropped, including
+    `click_on_listbox_trigger`.
 
 ## Next steps

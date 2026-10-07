@@ -13,6 +13,7 @@ on:
           - test2
           - test3
           - test4
+          - uat1
           - stage1
           - stage2
           - stage3
@@ -24,6 +25,7 @@ on:
         default: 'login.spec.ts'
         type: choice
         options:
+          - institutions.spec.ts
           - login.spec.ts
           - navbar.spec.ts
           - profile.spec.ts
@@ -77,6 +79,7 @@ env:
   USER_ONE_TEST2_PAT: ${{ secrets.USER_ONE_TEST2_PAT }}
   USER_ONE_TEST3_PAT: ${{ secrets.USER_ONE_TEST3_PAT }}
   USER_ONE_TEST4_PAT: ${{ secrets.USER_ONE_TEST4_PAT }}
+  USER_ONE_UAT1_PAT: ${{ secrets.USER_ONE_UAT1_PAT }}
   USER_ONE_PAT: ${{ secrets.USER_ONE_PAT }}
   MENDELEY_EMAIL: ${{ secrets.MENDELEY_EMAIL }}
   MENDELEY_PASSWORD: ${{ secrets.MENDELEY_PASSWORD }}

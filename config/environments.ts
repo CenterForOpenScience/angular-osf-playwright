@@ -7,6 +7,7 @@ export type EnvironmentName =
   | 'test2'
   | 'test3'
   | 'test4'
+  | 'uat1'
   | 'prod';
 
 export interface EnvironmentConfig {
@@ -92,6 +93,15 @@ export const environments: Record<EnvironmentName, EnvironmentConfig> = {
     customInstitutionDomains: [],
     addons: 'https://addons.test4.osf.io',
     addonTokenEnvVar: 'USER_ONE_TEST4_PAT',
+  },
+  uat1: {
+    home: 'https://uat1.osf.io',
+    api: 'https://api.uat1.osf.io',
+    files: 'https://files.us.uat1.osf.io',
+    cas: 'https://accounts.uat1.osf.io',
+    customInstitutionDomains: [],
+    addons: 'https://addons.uat1.osf.io',
+    addonTokenEnvVar: 'USER_ONE_UAT1_PAT',
   },
   prod: {
     home: 'https://osf.io',
