@@ -201,14 +201,14 @@ async function sortAndVerify(page: Page, filesPage: { selectSortFromList(o: stri
  
   // Shows what the test actually saw, so you can compare it with the page while debugging
   const rows = await readRows(page);
-  console.log(`[${sort.label}]\n` + rows.map((r) => `  ${r.name}  |  ${r.dateText || '-'}`).join('\n'));
+  //console.log(`[${sort.label}]\n` + rows.map((r) => `  ${r.name}  |  ${r.dateText || '-'}`).join('\n'));
 }
  
 
 // Example parameterized test replacing python's provider fixture
 const UNSUPPORTED_PROVIDERS = ['bitbucket', 'dataverse', 'figshare', 'gitlab', 'onedrive'];
 const providers = ['osfstorage', 's3', 'box', 'bitbucket', 'dataverse', 'dropbox', 'figshare', 'github', 'gitlab', 'googledrive', 'onedrive', 'owncloud'];
-//const providers = ['googledrive'];
+//const providers = ['osfstorage', 'box'];
 
 test.describe('Project Files Page', { tag: '@core' }, () => {
   test.beforeEach(() => {
