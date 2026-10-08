@@ -908,6 +908,28 @@ export async function updateRegistrationTitle(
   });
 }
 
+export async function getNodeIdByTitle(
+  session: OsfSession,
+  title: string
+): Promise<string | undefined> {
+  try {
+    const url = `/v2/nodes/?filter[title]=${encodeURIComponent(title)}`;
+
+    const response = await session.get(url);
+
+    const data = response.data;
+
+    if (data && data.length > 0) {
+      return data[0].id;
+    }
+
+    return undefined;
+  } catch (error) {
+    console.error(`Failed to get node by title "${title}":`, error);
+    throw error;
+  }
+}
+
 /**
  * Replaces a registration's subjects with the given top-level subject names (looked
  * up in the OSF registries provider's taxonomy, which is what the metadata page's
@@ -1048,4 +1070,6 @@ export async function waitForApiThrottleToClear(maxWaitMs = 180000): Promise<voi
     }
     await new Promise((resolve) => setTimeout(resolve, Math.min((seconds + 1) * 1000, remaining)));
   }
+}
+
 }

@@ -149,6 +149,7 @@ export async function clickExpectingPopup(page: Page, locator: Locator): Promise
   return popup;
 }
 
+
 /**
  * Search-result card title links are matched by `.first()` on a generic
  * class-based locator that gets re-evaluated fresh at click time. Card-validation
