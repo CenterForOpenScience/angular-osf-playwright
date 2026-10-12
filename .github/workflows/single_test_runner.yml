@@ -33,6 +33,7 @@ on:
           - registrationSidebar.spec.ts
           - search.spec.ts
           - user.spec.ts
+          - projectFiles.spec.ts
       browser:
         description: 'Browser'
         required: true

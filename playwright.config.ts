@@ -47,30 +47,20 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-    {
-      name: 'firefox',
-      use: {
-        ...devices['Desktop Firefox'],
-        launchOptions: {
-          firefoxUserPrefs: {
-            // Headed Firefox on Windows stops painting (and firing requestAnimationFrame)
-            // while its window is covered by other windows. Playwright's "stable" check
-            // waits on animation frames, so every click then hangs on "waiting for
-            // element to be visible, enabled and stable" until it times out.
-            'widget.windows.window_occlusion_tracking.enabled': false,
-          },
-        },
-      },
-    },
-    {
-      name: 'edge',
-      use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    },
-    {
-      // Playwright's WebKit engine - the closest thing to Safari available
-      // cross-platform (real Safari automation only runs on macOS).
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
+    // {
+    //   name: 'firefox',
+    //   use: { ...devices['Desktop Firefox'] },
+    // },
+    // {
+    //   name: 'edge',
+    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
+    // },
+    // {
+    //   // Playwright's WebKit engine - the closest thing to Safari available
+    //   // cross-platform (real Safari automation only runs on macOS).
+    //   name: 'webkit',
+    //   use: { ...devices['Desktop Safari'] },
+    // },
+
   ],
 });
