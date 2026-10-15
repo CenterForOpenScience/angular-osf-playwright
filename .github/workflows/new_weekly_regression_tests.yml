@@ -35,6 +35,7 @@ on:
           - Institutions
           - Login
           - Navbar
+          - Preprints
           - Profile
           - RegistrationMetadata
           - RegistrationSidebar
@@ -176,6 +177,7 @@ jobs:
             Institutions) echo "path=tests/institutions.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Login) echo "path=tests/login.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Navbar) echo "path=tests/navbar.spec.ts" >> "$GITHUB_OUTPUT" ;;
+            Preprints) echo "path=tests/preprints.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Profile) echo "path=tests/profile.spec.ts" >> "$GITHUB_OUTPUT" ;;
             RegistrationMetadata) echo "path=tests/registrationMetadata.spec.ts" >> "$GITHUB_OUTPUT" ;;
             RegistrationSidebar) echo "path=tests/registrationSidebar.spec.ts" >> "$GITHUB_OUTPUT" ;;

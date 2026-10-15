@@ -15,7 +15,7 @@ import { PreprintPage } from '../src/pages/PreprintPage';
 import { RegistrationPage } from '../src/pages/RegistrationPage';
 import { ProjectPage } from '../src/pages/ProjectPage';
 import { UserProfilePage } from '../src/pages/UserProfilePage';
-import { present, clickExpectingPopup, clickExpectingPopupByHref } from '../src/utils';
+import { present, clickExpectingPopup, clickExpectingPopupByHref, parseResultCount } from '../src/utils';
 
 
 const test = base.extend<{
@@ -505,7 +505,7 @@ async function verifyUserSearchCard(page: Page, userSearchPage: UserSearchResult
     await profilePage.projectsTab.click();
     await expect(popup.locator('p.type.py-1.px-3.font-bold').first()).toContainText('Project');
     const resultText = (await profilePage.resultCount.innerText()).trim();
-    const profileProjects = parseInt(resultText.split(' ')[0], 10);
+    const profileProjects = parseResultCount(resultText) as number;
     expect(publicProjects).toBeGreaterThanOrEqual(profileProjects);
   }
   if (publicRegistrations > 0) {
@@ -514,14 +514,14 @@ async function verifyUserSearchCard(page: Page, userSearchPage: UserSearchResult
       'Registration'
     );
     const resultText = (await profilePage.resultCount.innerText()).trim();
-    const profileRegistrations = parseInt(resultText.split(' ')[0], 10);
+    const profileRegistrations = parseResultCount(resultText) as number;
     expect(publicRegistrations).toBeGreaterThanOrEqual(profileRegistrations);
   }
   if (publicPreprints > 0) {
     await profilePage.preprintsTab.click();
     await expect(popup.locator('p.type.py-1.px-3.font-bold').first()).toContainText('Preprint');
     const resultText = (await profilePage.resultCount.innerText()).trim();
-    const profilePreprints = parseInt(resultText.split(' ')[0], 10);
+    const profilePreprints = parseResultCount(resultText) as number;
     expect(publicPreprints).toBeGreaterThanOrEqual(profilePreprints);
   }
 }
@@ -794,43 +794,43 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
   // -------------------------------------------------------------------------------
   test.describe('Preprints Tab', () => {
     test('filtering by creator on preprints tab', async ({ searchPageShort }) => {
-      await searchPageShort.preprintsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.preprintsTabLink);
       await searchPageShort.checkFilteringByCreator();
     });
 
     test('filtering by date created on preprints tab', async ({ searchPageShort }) => {
-      await searchPageShort.preprintsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.preprintsTabLink);
       await searchPageShort.checkFilteringByDateCreated('Date created');
     });
 
     test('filtering by subject on preprints tab', async ({ searchPageShort }) => {
-      await searchPageShort.preprintsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.preprintsTabLink);
       await searchPageShort.checkFilteringBySubject();
     });
 
     test('filtering by license on preprints tab', async ({ searchPageShort }) => {
-      await searchPageShort.preprintsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.preprintsTabLink);
       await searchPageShort.checkFilteringByLicense();
     });
 
     test('filtering by institution on preprints tab', async ({ searchPageShort }) => {
       test.skip(true, 'ENG-10674');
-      await searchPageShort.preprintsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.preprintsTabLink);
       await searchPageShort.checkFilteringByInstitution();
     });
 
     test('filtering by provider on preprints tab', async ({ searchPageShort }) => {
-      await searchPageShort.preprintsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.preprintsTabLink);
       await searchPageShort.checkFilteringByProvider();
     });
 
     test('filtering by supplemental materials on preprints tab', async ({ searchPageShort }) => {
-      await searchPageShort.preprintsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.preprintsTabLink);
       await searchPageShort.checkFilteringBySupplementalMaterials();
     });
 
     test('filtering by data on preprints tab', async ({ searchPageShort }) => {
-      await searchPageShort.preprintsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.preprintsTabLink);
       const publicDataSelector = 'section:has(h3:text-is("Public Data")) p:text("http")';
       await searchPageShort.checkFilteringByData(publicDataSelector);
     });
@@ -839,7 +839,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
       page,
       searchPageShort,
     }) => {
-      await searchPageShort.preprintsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.preprintsTabLink);
       await searchPageShort.additionalFiltersMenu.click();
       const option = page.locator('input#checkbox-hasPreregisteredAnalysisPlan');
       const numberOfRecords = await searchPageShort.getRecordCountForAdditionalFilters(
@@ -860,7 +860,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
       page,
       searchPageShort,
     }) => {
-      await searchPageShort.preprintsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.preprintsTabLink);
       await searchPageShort.additionalFiltersMenu.click();
       const option = page.locator('input#checkbox-hasPreregisteredStudyDesign');
       const numberOfRecords = await searchPageShort.getRecordCountForAdditionalFilters(
@@ -897,7 +897,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by creator on preprints tab', async ({ searchPageShort }) => {
-      await searchPageShort.preprintsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.preprintsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.creatorDropdownMenu,
@@ -906,7 +906,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by date created on preprints tab', async ({ searchPageShort }) => {
-      await searchPageShort.preprintsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.preprintsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.dateCreatedMenu,
@@ -915,7 +915,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by subject on preprints tab', async ({ searchPageShort }) => {
-      await searchPageShort.preprintsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.preprintsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.subjectMenu,
@@ -924,7 +924,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by license on preprints tab', async ({ searchPageShort }) => {
-      await searchPageShort.preprintsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.preprintsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.licenseMenu,
@@ -933,7 +933,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by institution on preprints tab', async ({ searchPageShort }) => {
-      await searchPageShort.preprintsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.preprintsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.institutionMenu,
@@ -942,7 +942,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by provider on preprints tab', async ({ searchPageShort }) => {
-      await searchPageShort.preprintsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.preprintsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.providerMenu,
@@ -956,50 +956,50 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
   // -------------------------------------------------------------------------------
   test.describe('Registrations Tab', () => {
     test('filtering by creator on registrations tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await searchPageShort.checkFilteringByCreator();
     });
 
     test('filtering by date created on registrations tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await searchPageShort.checkFilteringByDateCreated('Date registered');
     });
 
     test('filtering by subject on registrations tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await searchPageShort.checkFilteringBySubject();
     });
 
     test('filtering by license on registrations tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await searchPageShort.checkFilteringByLicense();
     });
 
     test('filtering by institution on registrations tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await searchPageShort.checkFilteringByInstitution();
     });
 
     test('filtering by provider on registrations tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await searchPageShort.checkFilteringByProvider();
     });
 
     test('filtering by funder on registrations tab', async ({ searchPageShort }) => {
       // test.skip(true, 'ENG-10674');
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await searchPageShort.checkFilteringByFunder();
     });
 
     test('filtering by resource type on registrations tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await searchPageShort.checkFilteringByResourceType('StudyRegistration', {
         verifyOnCard: false,
       });
     });
 
     test('filtering by data on registrations tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await searchPageShort.checkFilteringByData('i[class*="custom-icon-data"]');
     });
 
@@ -1007,7 +1007,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
       page,
       searchPageShort,
     }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await searchPageShort.registrationTemplateMenu.click();
       await searchPageShort.registrationTemplateMultiselectDropdown.click();
       const nameOfRecord = await searchPageShort.getRecordName('1');
@@ -1022,12 +1022,12 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('filtering by includes community on registrations tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await searchPageShort.checkFilteringByIncludesCommunitySchema();
     });
 
     test('filtering by analytic code on registrations tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await searchPageShort.checkFilteringByAdditionalOptions(
         'hasAnalyticCodeResource',
         'Analytic code',
@@ -1036,7 +1036,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('filtering by papers on registrations tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await searchPageShort.checkFilteringByAdditionalOptions(
         'hasPapersResource',
         'Papers',
@@ -1047,7 +1047,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     test('filtering by supplemental resource on registrations tab', async ({
       searchPageShort,
     }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await searchPageShort.checkFilteringByAdditionalOptions(
         'hasSupplementalResource',
         'Supplemental resource',
@@ -1056,7 +1056,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('filtering by materials on registrations tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await searchPageShort.checkFilteringByAdditionalOptions(
         'hasMaterialsResource',
         'Materials',
@@ -1084,7 +1084,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by creator on registrations tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.creatorDropdownMenu,
@@ -1095,7 +1095,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     test('search in filtering by date created on registrations tab', async ({
       searchPageShort,
     }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.dateCreatedMenu,
@@ -1104,7 +1104,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by funder on registrations tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.funderMenu,
@@ -1113,7 +1113,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by subject on registrations tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.subjectMenu,
@@ -1122,7 +1122,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by license on registrations tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.licenseMenu,
@@ -1133,7 +1133,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     test('search in filtering by resource type on registrations tab', async ({
       searchPageShort,
     }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.resourceTypeMenu,
@@ -1144,7 +1144,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     test('search in filtering by institution on registrations tab', async ({
       searchPageShort,
     }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.institutionMenu,
@@ -1155,7 +1155,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     test('search in filtering by community schema on registrations tab', async ({
       searchPageShort,
     }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.includesCommunitySchemaMenu,
@@ -1164,7 +1164,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by provider on registrations tab', async ({ searchPageShort }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.providerMenu,
@@ -1175,7 +1175,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     test('search in filtering by registration template on registrations tab', async ({
       searchPageShort,
     }) => {
-      await searchPageShort.registrationsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.registrationsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.registrationTemplateMenu,
@@ -1189,22 +1189,22 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
   // -------------------------------------------------------------------------------
   test.describe('Files Tab', () => {
     test('filtering by date created on files tab', async ({ searchPageShort }) => {
-      await searchPageShort.filesTabLink.click();
+      await searchPageShort.openTab(searchPageShort.filesTabLink);
       await searchPageShort.checkFilteringByDateCreated('Date created');
     });
 
     test('filtering by funder on files tab', async ({ searchPageShort }) => {
-      await searchPageShort.filesTabLink.click();
+      await searchPageShort.openTab(searchPageShort.filesTabLink);
       await searchPageShort.checkFilteringByFunder();
     });
 
     test('filtering by license on files tab', async ({ searchPageShort }) => {
-      await searchPageShort.filesTabLink.click();
+      await searchPageShort.openTab(searchPageShort.filesTabLink);
       await searchPageShort.checkFilteringByLicense();
     });
 
     test('filtering by resource type on files tab', async ({ page, searchPageShort }) => {
-      await searchPageShort.filesTabLink.click();
+      await searchPageShort.openTab(searchPageShort.filesTabLink);
       await searchPageShort.resourceTypeMenu.click();
       await searchPageShort.resourceTypeMultiselectDropdown.click();
       await searchPageShort.multiselectFilterInput.fill('Book');
@@ -1219,7 +1219,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('filtering by includes community on files tab', async ({ searchPageShort }) => {
-      await searchPageShort.filesTabLink.click();
+      await searchPageShort.openTab(searchPageShort.filesTabLink);
       await searchPageShort.checkFilteringByIncludesCommunitySchema();
     });
 
@@ -1243,7 +1243,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by date created on files tab', async ({ searchPageShort }) => {
-      await searchPageShort.filesTabLink.click();
+      await searchPageShort.openTab(searchPageShort.filesTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.dateCreatedMenu,
@@ -1252,7 +1252,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by funder on files tab', async ({ searchPageShort }) => {
-      await searchPageShort.filesTabLink.click();
+      await searchPageShort.openTab(searchPageShort.filesTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.funderMenu,
@@ -1261,7 +1261,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by license on files tab', async ({ searchPageShort }) => {
-      await searchPageShort.filesTabLink.click();
+      await searchPageShort.openTab(searchPageShort.filesTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.licenseMenu,
@@ -1270,7 +1270,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by community schema on files tab', async ({ searchPageShort }) => {
-      await searchPageShort.filesTabLink.click();
+      await searchPageShort.openTab(searchPageShort.filesTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.includesCommunitySchemaMenu,
@@ -1279,7 +1279,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by resource type on files tab', async ({ searchPageShort }) => {
-      await searchPageShort.filesTabLink.click();
+      await searchPageShort.openTab(searchPageShort.filesTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.resourceTypeMenu,
@@ -1294,40 +1294,40 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
   test.describe('Projects Tab', () => {
     test('filtering by creator on projects tab', async ({ searchPageShort }) => {
       // test.skip(true, 'ENG-10674');
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await searchPageShort.checkFilteringByCreator();
     });
 
     test('filtering by date created on projects tab', async ({ searchPageShort }) => {
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await searchPageShort.checkFilteringByDateCreated('Date created');
     });
 
     test('filtering by funder on projects tab', async ({ searchPageShort }) => {
       // test.skip(true, 'ENG-10674');
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await searchPageShort.checkFilteringByFunder();
     });
 
     test('filtering by subject on projects tab', async ({ searchPageShort }) => {
       test.skip(true, 'ENG-10674');
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await searchPageShort.checkFilteringBySubject();
     });
 
     test('filtering by license on projects tab', async ({ searchPageShort }) => {
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await searchPageShort.checkFilteringByLicense();
     });
 
     test('filtering by institution on projects tab', async ({ searchPageShort }) => {
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await searchPageShort.checkFilteringByInstitution();
     });
 
     test('filtering by part of collection on projects tab', async ({ searchPageShort }) => {
       // test.skip(true, 'ENG-10674');
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await searchPageShort.checkFilteringByPartOfCollection();
     });
 
@@ -1335,12 +1335,12 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
       searchPageShort,
     }) => {
       // test.skip(true, 'ENG-10674');
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await searchPageShort.checkFilteringByIncludesCommunitySchema();
     });
 
     test('filtering by associated preprint on projects tab', async ({ page, searchPageShort }) => {
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await searchPageShort.additionalFiltersMenu.click();
       const additionalOption = page.locator('input#checkbox-supplements');
       if (!(await present(additionalOption))) {
@@ -1365,15 +1365,15 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
 
     test('filtering by resource type on projects tab', async ({ page, searchPageShort }) => {
       // test.skip(true, 'ENG-10674');
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await searchPageShort.resourceTypeMenu.click();
       await searchPageShort.resourceTypeMultiselectDropdown.click();
       await searchPageShort.multiselectFilterInput.fill('Book');
       const numberOfRecords = await searchPageShort.getRecordCount('1');
+      const resultCountBeforeFilter = await searchPageShort.getResultsCount();
       await searchPageShort.optionCheckboxByIndex('1').click({ force: true });
       await searchPageShort.waitForResultsLoad();
-      const resultCountAfterFilterApplying = await searchPageShort.getResultsCount();
-      expect(resultCountAfterFilterApplying).toBe(numberOfRecords);
+      await searchPageShort.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
       await searchPageShort.chevronMenuFirstCard.click();
       const resourceTypeInCard = page.locator('p', { hasText: 'Resource type:' }).first();
       await expect(resourceTypeInCard).toContainText('Book');
@@ -1390,7 +1390,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by creator on projects tab', async ({ searchPageShort }) => {
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.creatorDropdownMenu,
@@ -1399,7 +1399,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by date created on projects tab', async ({ searchPageShort }) => {
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.dateCreatedMenu,
@@ -1408,7 +1408,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by funder on projects tab', async ({ searchPageShort }) => {
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.funderMenu,
@@ -1417,7 +1417,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by subject on projects tab', async ({ searchPageShort }) => {
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.subjectMenu,
@@ -1426,7 +1426,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by license on projects tab', async ({ searchPageShort }) => {
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.licenseMenu,
@@ -1435,7 +1435,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by resource type on projects tab', async ({ searchPageShort }) => {
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.resourceTypeMenu,
@@ -1444,7 +1444,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     });
 
     test('search in filtering by institution on projects tab', async ({ searchPageShort }) => {
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.institutionMenu,
@@ -1455,7 +1455,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     test('search in filtering by part of collection on projects tab', async ({
       searchPageShort,
     }) => {
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.partOfCollectionMenu,
@@ -1466,7 +1466,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     test('search in filtering by community schema on projects tab', async ({
       searchPageShort,
     }) => {
-      await searchPageShort.projectsTabLink.click();
+      await searchPageShort.openTab(searchPageShort.projectsTabLink);
       await checkSearchInFilteringOptionsFor(
         searchPageShort,
         searchPageShort.includesCommunitySchemaMenu,
@@ -1487,42 +1487,42 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
     // be read off the UI. These verify what the UI can: each option fires the matching
     // SHARE `sort` request and the results re-render (`applySort` fails otherwise).
     test('sorting by created date on users tab', async ({ searchPageShort }) => {
-      await searchPageShort.usersTabLink.click();
+      await searchPageShort.openTab(searchPageShort.usersTabLink);
       await expect(searchPageShort.searchResults.first()).toBeVisible();
       await searchPageShort.applySort(searchPageShort.sortByDateCreatedNewest, '-dateCreated');
       await searchPageShort.applySort(searchPageShort.sortByDateCreatedOldest, 'dateCreated');
     });
 
     test('sorting by modified date on users tab', async ({ searchPageShort }) => {
-      await searchPageShort.usersTabLink.click();
+      await searchPageShort.openTab(searchPageShort.usersTabLink);
       await expect(searchPageShort.searchResults.first()).toBeVisible();
       await searchPageShort.applySort(searchPageShort.sortByDateModifiedNewest, '-dateModified');
       await searchPageShort.applySort(searchPageShort.sortByDateModifiedOldest, 'dateModified');
     });
 
     test('search results exist on users tab', async ({ searchPageShort }) => {
-      await searchPageShort.usersTabLink.click();
+      await searchPageShort.openTab(searchPageShort.usersTabLink);
       await expect(searchPageShort.searchResults.first()).toBeVisible();
       expect(await searchPageShort.searchResults.count()).toBeGreaterThan(0);
       expect(await searchPageShort.firstCardObjectTypeLabel.innerText()).toBe('User');
     });
 
     test('filtering on users tab', async ({ searchPageShort }) => {
-      await searchPageShort.usersTabLink.click();
+      await searchPageShort.openTab(searchPageShort.usersTabLink);
       await expect(searchPageShort.searchResults.first()).toBeVisible();
       await searchPageShort.institutionAffiliationMenu.click();
       await searchPageShort.additionalMultiselectDropdown.click();
       const nameOfInstitution = await searchPageShort.getRecordName('1');
       const numberOfUsers = await searchPageShort.getRecordCount('1');
+      const resultCountBeforeFilter = await searchPageShort.getResultsCount();
       await searchPageShort.optionByIndex('1').click();
       await searchPageShort.waitForResultsLoad();
-      const resultCountAfterFilterApplying = await searchPageShort.getResultsCount();
-      expect(resultCountAfterFilterApplying).toBe(numberOfUsers);
+      await searchPageShort.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfUsers);
       await searchPageShort.expectEveryResultCardToContain(nameOfInstitution);
     });
 
     test('clearing of applied filters on users tab', async ({ page, searchPageShort }) => {
-      await searchPageShort.usersTabLink.click();
+      await searchPageShort.openTab(searchPageShort.usersTabLink);
       await expect(searchPageShort.searchResults.first()).toBeVisible();
       const resultCountWithoutFilter = await searchPageShort.getResultsCount();
       await searchPageShort.institutionAffiliationMenu.click();

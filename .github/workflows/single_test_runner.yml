@@ -28,6 +28,7 @@ on:
           - institutions.spec.ts
           - login.spec.ts
           - navbar.spec.ts
+          - preprints.spec.ts
           - profile.spec.ts
           - registrationMetadata.spec.ts
           - registrationSidebar.spec.ts

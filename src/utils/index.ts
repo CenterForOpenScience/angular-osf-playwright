@@ -100,6 +100,18 @@ export function normalizeApiDate(apiDate: string): string {
 }
 
 /**
+ * Parses a search "N results" heading (`h4.result-count`). Large totals use a
+ * thousands separator - prod renders "10 000+ results", other locales "10,000+" - and
+ * SHARE caps any total of 10,000 or more (`trove:ten-thousands-and-more`) as "10 000+",
+ * so a capped count comes back as 10000, its lower bound. Returns null when there's no
+ * number in the text.
+ */
+export function parseResultCount(text: string): number | null {
+  const match = text.trim().match(/^\d[\d\s,.]*/);
+  return match ? parseInt(match[0].replace(/\D/g, ''), 10) : null;
+}
+
+/**
  * Port of `normalize_ui_date` from utils.py. The Python original assumed the UI always
  * renders in a fixed `America/New_York` wall clock and converted from that - verified
  * live (via `_debug_inspect.spec.ts` per CLAUDE.md) that the current Angular app
@@ -188,6 +200,40 @@ export async function waitForDownload(
     clearTimeout(timer);
     context.off('page', onPage!);
     for (const p of pages) p.off('download', onDownload!);
+  }
+}
+
+/**
+ * Clicks something that downloads a file and returns the download. The download can
+ * start in the page itself or in a tab the click opens (the preprint Download button
+ * opens `/download/<guid>` in a new tab, and Edge reports the download on that tab),
+ * so it's awaited on every page of the context.
+ */
+export async function clickExpectingDownload(
+  page: Page,
+  locator: Locator,
+  timeout = settings.TIMEOUT_MS
+): Promise<Download> {
+  const context = page.context();
+  let onPage: (newPage: Page) => void = () => undefined;
+  const download = new Promise<Download>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`No download started within ${timeout}ms`)),
+      timeout
+    );
+    const resolveOnce = (started: Download) => {
+      clearTimeout(timer);
+      resolve(started);
+    };
+    page.once('download', resolveOnce);
+    onPage = (newPage) => newPage.once('download', resolveOnce);
+    context.on('page', onPage);
+  });
+  try {
+    await locator.click();
+    return await download;
+  } finally {
+    context.off('page', onPage);
   }
 }
 

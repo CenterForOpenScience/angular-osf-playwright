@@ -992,30 +992,47 @@ export async function getAllInstitutionsData(session: OsfSession): Promise<any[]
  * building one test per institution while Playwright collects tests (collection is
  * synchronous, so the async session can't be used there - the Python suite likewise
  * called the API at pytest collection time). `/v2/institutions/` is public, so no
- * auth is needed. The main runner process collects first and then spawns the
- * workers with its env, so the ids are cached in an env var and fetched only once
- * per run instead of once per worker.
+ * auth is needed. See `getPublicListSync` for how the result is cached.
+ */
+export function getAllInstitutionIdsSync(): string[] {
+  return getPublicListSync('OSF_INSTITUTION_IDS', '/v2/institutions/', 'institution list', (data) =>
+    data.map((institution) => institution.id)
+  );
+}
+
+/**
+ * Fetches a public API list while Playwright collects tests, and maps it down to what
+ * the spec needs. The main runner process collects first and then spawns the workers
+ * with its env, so the mapped result is cached in an env var (`cacheKey`) and fetched
+ * only once per run instead of once per worker - keep the mapped value small, Windows
+ * caps an env var at 32767 characters.
  *
  * A failed fetch is cached too, and rethrown from the cache: every process must
  * collect the same test list, and a worker whose own retry succeeded would register
  * tests the runner never scheduled. The caller catches the error so a bad fetch
  * fails only its own spec instead of aborting the whole run at load time.
  */
-export function getAllInstitutionIdsSync(): string[] {
-  const cacheKey = 'OSF_INSTITUTION_IDS';
-  const cached = process.env[cacheKey];
-  if (!cached) {
-    process.env[cacheKey] = JSON.stringify(fetchInstitutionIdsSync());
+function getPublicListSync<T>(
+  cacheKey: string,
+  path: string,
+  description: string,
+  map: (data: any[]) => T
+): T {
+  if (!process.env[cacheKey]) {
+    const fetched = fetchPublicListSync(path);
+    process.env[cacheKey] = JSON.stringify(
+      fetched.error !== undefined ? { error: fetched.error } : { value: map(fetched.data as any[]) }
+    );
   }
-  const result: { ids?: string[]; error?: string } = JSON.parse(process.env[cacheKey] as string);
+  const result: { value?: T; error?: string } = JSON.parse(process.env[cacheKey] as string);
   if (result.error !== undefined) {
-    throw new Error(`Could not fetch the institution list: ${result.error}`);
+    throw new Error(`Could not fetch the ${description}: ${result.error}`);
   }
-  return result.ids as string[];
+  return result.value as T;
 }
 
-function fetchInstitutionIdsSync(): { ids?: string[]; error?: string } {
-  const url = `${settings.API_DOMAIN}/v2/institutions/`;
+function fetchPublicListSync(path: string): { data?: any[]; error?: string } {
+  const url = `${settings.API_DOMAIN}${path}`;
   // Retries a throttled (429) response after its Retry-After, up to 3 attempts - the
   // API is often still throttled from the previous spec when this one is collected.
   const script =
@@ -1030,15 +1047,16 @@ function fetchInstitutionIdsSync(): { ids?: string[]; error?: string } {
     '  return r.json();' +
     '};' +
     'get(1)' +
-    '.then((d) => process.stdout.write(JSON.stringify(d.data.map((i) => i.id))))' +
+    '.then((d) => process.stdout.write(JSON.stringify(d.data)))' +
     '.catch((e) => { process.stderr.write(String(e)); process.exit(1); });';
   try {
     const output = execFileSync(process.execPath, ['-e', script, url], {
       encoding: 'utf-8',
       timeout: 300000,
       stdio: ['ignore', 'pipe', 'pipe'],
+      maxBuffer: 64 * 1024 * 1024,
     });
-    return { ids: JSON.parse(output) };
+    return { data: JSON.parse(output) };
   } catch (error) {
     const stderr = (error as { stderr?: string }).stderr;
     return { error: stderr?.trim() || String(error) };
@@ -1072,4 +1090,416 @@ export async function waitForApiThrottleToClear(maxWaitMs = 180000): Promise<voi
   }
 }
 
+/**
+ * Below: functions ported for `tests/test_preprints.py`. Like the Python originals,
+ * the ones whose `session` is optional fall back to a USER_ONE session
+ * (`get_default_session()`) - USER_ONE moderates the Selenium preprint providers.
+ */
+
+let cachedDefaultSession: Promise<OsfSession> | undefined;
+
+/** Port of `get_default_session()` - one shared USER_ONE session, lazily created. */
+function defaultSession(): Promise<OsfSession> {
+  if (!cachedDefaultSession) {
+    cachedDefaultSession = createSession();
+  }
+  return cachedDefaultSession;
+}
+
+/** Port of `get_user_two_session`. The caller disposes it. */
+export function getUserTwoSession(): Promise<OsfSession> {
+  return createSession(settings.USER_TWO, settings.USER_TWO_PASSWORD);
+}
+
+/** Port of `get_subject_id_for_provider`. */
+export async function getSubjectIdForProvider(
+  session: OsfSession,
+  {
+    providerType = 'preprints',
+    providerId = 'osf',
+    subjectName = 'Engineering',
+  }: { providerType?: string; providerId?: string; subjectName?: string } = {}
+): Promise<string> {
+  const data = await session.get(`v2/providers/${providerType}/${providerId}/subjects/`, {
+    'page[size]': 1000,
+  });
+  const match = (data.data as any[]).find((subject) => subject.attributes.text === subjectName);
+  if (!match) throw new Error(`Subject '${subjectName}' not found for provider '${providerId}'`);
+  return match.id;
+}
+
+/** Port of `get_moderation_type_for_provider` - 'pre-moderation', 'post-moderation' or null. */
+export async function getModerationTypeForProvider(
+  session: OsfSession,
+  {
+    providerType = 'preprints',
+    providerId = 'osf',
+  }: { providerType?: string; providerId?: string } = {}
+): Promise<string | null> {
+  const data = await session.get(`v2/providers/${providerType}/${providerId}/`);
+  return data.data?.attributes.reviews_workflow ?? null;
+}
+
+/**
+ * Polls until a just-made API write is visible to reads. On uat1 the API has
+ * occasionally answered from before a write a moment after it (an `accept` refused
+ * because the preprint was still "initial" right after `submit`; a moderator page
+ * that loaded without the withdrawal request just created), so the setup helpers
+ * below wait for their own writes before a test goes on.
+ */
+async function waitUntilVisible(
+  description: string,
+  check: () => Promise<boolean>,
+  timeoutMs = 15000
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!(await check())) {
+    if (Date.now() > deadline) throw new Error(`Timed out waiting until ${description}`);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+}
+
+/**
+ * Shared tail of `create_preprint` and `create_new_preprint_version`: uploads a file
+ * to the preprint in WaterButler, makes it the primary file, publishes the preprint
+ * unless its provider is moderated, and (when moderated) submits it for review.
+ */
+async function attachFileAndSubmitPreprint(
+  session: OsfSession,
+  preprintId: string,
+  providerId: string,
+  fileName: string
+): Promise<string> {
+  // WaterButler can answer 404 "Guid not resolved" for a preprint created a moment ago,
+  // and on uat1 has dropped the upload's connection ("socket hang up"). A dropped upload
+  // may still have landed, so a retry answering 409 means the file is already there.
+  const uploadUrl = `${settings.FILE_DOMAIN}/v1/resources/${preprintId}/providers/osfstorage/`;
+  let fileId = '';
+  let connectionDrops = 0;
+  await waitUntilVisible(`WaterButler resolves preprint ${preprintId}`, async () => {
+    try {
+      const { metadata } = await uploadFakeFile(session, undefined, fileName, uploadUrl);
+      // WaterButler's id is prefixed with the provider (`osfstorage/627a5b...`).
+      fileId = metadata.data.id.split('/')[1];
+      return true;
+    } catch (error) {
+      if (error instanceof OsfApiError && error.status === 404) return false;
+      if (error instanceof OsfApiError && error.status === 409 && connectionDrops) {
+        const listing = await session.get(uploadUrl);
+        const file = listing.data.find((item: any) => item.attributes.name === fileName);
+        fileId = file.id.split('/')[1];
+        return true;
+      }
+      const connectionDropped =
+        !(error instanceof OsfApiError) && /socket hang up|ECONNRESET/.test(String(error));
+      if (connectionDropped && connectionDrops < 2) {
+        connectionDrops++;
+        return false;
+      }
+      throw error;
+    }
+  }, 60000);
+  // A pre-moderated preprint can't be published until a moderator accepts it, and a
+  // post-moderated one is published by the `submit` review action below.
+  const moderationType = await getModerationTypeForProvider(session, { providerId });
+  const data = await session.patch(`/v2/preprints/${preprintId}/`, {
+    data: {
+      id: preprintId,
+      type: 'preprints',
+      attributes: { is_published: moderationType === null },
+      relationships: { primary_file: { data: { type: 'files', id: fileId } } },
+    },
+  });
+  if (moderationType !== null) {
+    await session.post(`/v2/preprints/${preprintId}/review_actions/`, {
+      data: {
+        type: 'review_actions',
+        attributes: { trigger: 'submit' },
+        relationships: { target: { data: { id: preprintId, type: 'preprints' } } },
+      },
+    });
+    await waitUntilVisible(`preprint ${preprintId} is submitted`, async () => {
+      const preprint = await getPreprintDetails(session, preprintId);
+      return preprint.attributes.reviews_state !== 'initial';
+    });
+  }
+  return data.data.id;
+}
+
+export interface CreatePreprintOptions {
+  providerId?: string;
+  title?: string;
+  licenseName?: string;
+  subjectName?: string;
+}
+
+/**
+ * Port of `create_preprint` - creates a preprint with a file and submits it (published
+ * straight away for an unmoderated provider). Returns the preprint guid.
+ */
+export async function createPreprint(
+  session: OsfSession,
+  {
+    providerId = 'osf',
+    title = 'OSF Selenium Preprint',
+    licenseName = 'CC0 1.0 Universal',
+    subjectName = 'Engineering',
+  }: CreatePreprintOptions = {}
+): Promise<string> {
+  const { licenseId, requiredFields } = await getLicenseDataForProvider(session, { licenseName });
+  const copyrightHolders = requiredFields.includes('copyrightHolders')
+    ? ['OSF Selenium Tester', 'QA Guy']
+    : [];
+  const subjectId = await getSubjectIdForProvider(session, { providerId, subjectName });
+  const data = await session.post('/v2/preprints/', {
+    data: {
+      type: 'preprints',
+      attributes: {
+        title,
+        description: 'Preprint created via the OSF api',
+        subjects: [[subjectId]],
+        // The year is set even when the license doesn't need it: without it the Edit
+        // Preprint page thinks the preprint has unsaved changes (ENG-3782).
+        license_record: { copyright_holders: copyrightHolders, year: new Date().getFullYear() },
+        tags: ['qatest', 'selenium', 'AQA preprint tag'],
+        has_coi: false,
+        has_data_links: 'available',
+        data_links: ['https://osf.io/'],
+        has_prereg_links: 'no',
+        why_no_prereg: 'QA Selenium Testing',
+      },
+      relationships: {
+        license: { data: { type: 'licenses', id: licenseId } },
+        provider: { data: { type: 'providers', id: providerId } },
+      },
+    },
+  });
+  return attachFileAndSubmitPreprint(session, data.data.id, providerId, 'OSF Test File.txt');
+}
+
+/** Port of `create_new_preprint_version`. Returns the new version's guid (`<guid>_v2`). */
+export async function createNewPreprintVersion(
+  session: OsfSession,
+  preprintId: string,
+  providerId = 'selpremod'
+): Promise<string> {
+  const data = await session.post(`/v2/preprints/${preprintId}/versions/`, {
+    data: { type: 'preprint-versions' },
+    meta: { version: '2.0' },
+  });
+  return attachFileAndSubmitPreprint(session, data.data.id, providerId, 'OSF Test File V2.txt');
+}
+
+async function postReviewAction(
+  session: OsfSession | undefined,
+  preprintId: string,
+  trigger: 'accept' | 'reject',
+  comment: string
+): Promise<void> {
+  const resolved = session ?? (await defaultSession());
+  await resolved.post(`/v2/preprints/${preprintId}/review_actions/`, {
+    data: {
+      type: 'review_actions',
+      attributes: { trigger, comment },
+      relationships: { target: { data: { id: preprintId, type: 'preprints' } } },
+    },
+  });
+}
+
+/** Port of `accept_moderated_preprint`. Defaults to USER_ONE, the providers' moderator. */
+export function acceptModeratedPreprint(preprintId: string, session?: OsfSession): Promise<void> {
+  return postReviewAction(session, preprintId, 'accept', 'Preprint Accepted via OSF api');
+}
+
+/** Port of `reject_moderated_preprint`. Defaults to USER_ONE, the providers' moderator. */
+export function rejectModeratedPreprint(preprintId: string, session?: OsfSession): Promise<void> {
+  return postReviewAction(session, preprintId, 'reject', 'Preprint Rejected via OSF api');
+}
+
+/** Port of `get_preprint_publish_and_review_states` - `[is_published, reviews_state]`. */
+export async function getPreprintPublishAndReviewStates(
+  preprintId: string,
+  session?: OsfSession
+): Promise<[boolean, string]> {
+  const preprint = await getPreprintDetails(session ?? (await defaultSession()), preprintId);
+  return [preprint.attributes.is_published, preprint.attributes.reviews_state];
+}
+
+/** Port of `get_preprint_requests_records`. */
+export async function getPreprintRequestsRecords(
+  preprintId: string,
+  session?: OsfSession
+): Promise<any[]> {
+  const resolved = session ?? (await defaultSession());
+  const data = await resolved.get(`v2/preprints/${preprintId}/requests/`);
+  return data.data ?? [];
+}
+
+/**
+ * Port of `get_preprint_id` - despite the Python name, it returns the id of the
+ * preprint's last request record (its withdrawal request), not the preprint's own id.
+ */
+export async function getPreprintRequestId(
+  preprintId: string,
+  session?: OsfSession
+): Promise<string> {
+  const requests = await getPreprintRequestsRecords(preprintId, session);
+  return requests.length ? requests[requests.length - 1].id : '';
+}
+
+/** Port of `accept_withdraw_preprint` - accepts a withdrawal request by its request id. */
+export async function acceptWithdrawPreprint(
+  requestId: string,
+  session?: OsfSession
+): Promise<void> {
+  const resolved = session ?? (await defaultSession());
+  await resolved.post('/v2/actions/requests/preprints/', {
+    data: {
+      type: 'preprint-request-actions',
+      attributes: { trigger: 'accept', comment: 'Preprint Withdraw Approval via OSF api' },
+      relationships: { target: { data: { id: requestId, type: 'preprint-requests' } } },
+    },
+  });
+}
+
+/** Port of `create_preprint_withdrawal_request`. */
+export async function createPreprintWithdrawalRequest(
+  session: OsfSession,
+  preprintId: string
+): Promise<void> {
+  await session.post(`/v2/preprints/${preprintId}/requests/`, {
+    data: {
+      type: 'preprint-requests',
+      attributes: { request_type: 'withdrawal', comment: 'Withdrawal Request via OSF api' },
+      relationships: { target: { data: { id: preprintId, type: 'preprints' } } },
+    },
+  });
+  await waitUntilVisible(`the withdrawal request for ${preprintId} is listed`, async () => {
+    const requests = await getPreprintRequestsRecords(preprintId, session);
+    return requests.some((request) => request.attributes.request_type === 'withdrawal');
+  });
+}
+
+/** Port of `get_most_recent_preprint_node_id`. */
+export async function getMostRecentPreprintNodeId(session?: OsfSession): Promise<string | null> {
+  const resolved = session ?? (await defaultSession());
+  const data = await resolved.get('/v2/preprints/');
+  const match = (data.data as any[]).find((preprint) => preprint.attributes.is_published);
+  return match?.id ?? null;
+}
+
+async function getPreprintMetric(
+  preprintId: string,
+  metric: 'views' | 'downloads',
+  session?: OsfSession
+): Promise<number> {
+  const resolved = session ?? (await defaultSession());
+  const data = await resolved.get(`/v2/preprints/${preprintId}/`, { [`metrics[${metric}]`]: 'total' });
+  return data.meta.metrics[metric];
+}
+
+/** Port of `get_preprint_views_count`. */
+export function getPreprintViewsCount(preprintId: string, session?: OsfSession): Promise<number> {
+  return getPreprintMetric(preprintId, 'views', session);
+}
+
+/**
+ * Port of `get_preprint_downloads_count`. Python read the primary file's
+ * `extra.downloads` from `/files/osfstorage/`, but that counter doesn't change when
+ * the preprint is downloaded from its page (seen on uat1: it stayed 0 while the page
+ * went from 1 to 2). The page shows `metrics[downloads]`, so that's read here.
+ */
+export function getPreprintDownloadsCount(preprintId: string, session?: OsfSession): Promise<number> {
+  return getPreprintMetric(preprintId, 'downloads', session);
+}
+
+/** Port of `get_providers_total` - how many preprints a preprint provider has. */
+export async function getProvidersTotal(session: OsfSession, providerId: string): Promise<number> {
+  const id = providerId.toLowerCase().replace(/ /g, '');
+  const data = await session.get(`/v2/providers/preprints/${id}/preprints/`);
+  return data.links.meta.total;
+}
+
+/** Port of `add_contributor_to_preprint` - adds a bibliographic write contributor. */
+export async function addContributorToPreprint(
+  session: OsfSession,
+  preprintId: string,
+  userName: string
+): Promise<void> {
+  const userId = await getUserGuid(session, userName);
+  await session.post(`/v2/preprints/${preprintId}/contributors/`, {
+    data: {
+      type: 'contributors',
+      attributes: { full_name: userName, permission: 'write', bibliographic: true },
+      relationships: { users: { data: { type: 'users', id: userId } } },
+    },
+  });
+}
+
+/** Port of `get_preprint_file_name`. */
+export async function getPreprintFileName(session: OsfSession, preprintId: string): Promise<string> {
+  const data = await session.get(`/v2/preprints/${preprintId}/files/osfstorage`);
+  return data.data[0].attributes.name;
+}
+
+/**
+ * The preprint record. Stands in for the Python `get_preprint_file_version`,
+ * `get_preprint_created_date`, `get_preprint_modified_date`,
+ * `get_preprint_publication_date` and `get_preprint_provider`, which each fetched it
+ * again to read one attribute.
+ */
+export async function getPreprintDetails(session: OsfSession, preprintId: string): Promise<any> {
+  const data = await session.get(`/v2/preprints/${preprintId}/`);
+  return data.data;
+}
+
+/** Port of `get_preprint_license_name`. */
+export async function getPreprintLicenseName(
+  session: OsfSession,
+  preprintId: string
+): Promise<string> {
+  const preprint = await getPreprintDetails(session, preprintId);
+  const licenseData = await session.get(`v2/licenses/${preprint.relationships.license.data.id}/`);
+  return licenseData.data.attributes.name;
+}
+
+/** Port of `get_preprint_subjects`. */
+export async function getPreprintSubjects(
+  session: OsfSession,
+  preprintId: string
+): Promise<string[]> {
+  const data = await session.get(`/v2/preprints/${preprintId}/subjects/`);
+  return (data.data as any[]).map((subject) => subject.attributes.text);
+}
+
+/** The fields of a preprint provider that the preprints spec's per-provider tests use. */
+export interface PreprintProvider {
+  id: string;
+  name: string;
+  domain: string;
+  domainRedirectEnabled: boolean;
+  allowSubmissions: boolean;
+  additionalProviders: string[];
+}
+
+/**
+ * Synchronous port of `get_providers_list()` for preprint providers, to build one
+ * test per provider while Playwright collects tests, like pytest's
+ * `@pytest.fixture(params=get_providers())`. `/v2/providers/preprints/` is public.
+ */
+export function getPreprintProvidersSync(): PreprintProvider[] {
+  return getPublicListSync(
+    'OSF_PREPRINT_PROVIDERS',
+    '/v2/providers/preprints/',
+    'preprint provider list',
+    (data) =>
+      data.map((provider) => ({
+        id: provider.id,
+        name: provider.attributes.name,
+        domain: provider.attributes.domain,
+        domainRedirectEnabled: provider.attributes.domain_redirect_enabled,
+        allowSubmissions: provider.attributes.allow_submissions,
+        additionalProviders: provider.attributes.additional_providers ?? [],
+      }))
+  );
 }

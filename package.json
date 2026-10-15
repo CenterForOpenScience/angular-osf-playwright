@@ -13,6 +13,7 @@
     "test:login": "playwright test tests/login.spec.ts",
     "test:user": "playwright test tests/user.spec.ts",
     "test:institutions": "playwright test tests/institutions.spec.ts",
+    "test:preprints": "playwright test tests/preprints.spec.ts",
     "test:registration-metadata": "playwright test tests/registrationMetadata.spec.ts",
     "test:registration-sidebar": "playwright test tests/registrationSidebar.spec.ts",
     "test:test": "cross-env TEST_ENV=test playwright test",
