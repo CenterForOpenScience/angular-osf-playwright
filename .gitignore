@@ -152,3 +152,7 @@ tests/_debug_inspect.spec.ts
 
 # Claude Code project instructions
 CLAUDE.md
+
+# Per-environment Playwright output (--output=test-results-<env>)
+test-results-prod/
+test-results-uat1/

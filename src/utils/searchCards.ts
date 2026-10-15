@@ -13,7 +13,7 @@ import { PreprintPage } from '../pages/PreprintPage';
 import { RegistrationPage } from '../pages/RegistrationPage';
 import { ProjectPage } from '../pages/ProjectPage';
 import { UserProfilePage } from '../pages/UserProfilePage';
-import { present, clickExpectingPopup, clickExpectingPopupByHref } from './index';
+import { present, clickExpectingPopup, clickExpectingPopupByHref, parseResultCount } from './index';
 
 /**
  * Search-result card validators shared by specs that render the
@@ -422,7 +422,9 @@ async function profileTabResultCount(
   await expect(
     popup.locator('p.type.py-1.px-3.font-bold').filter({ hasNotText: expectedType })
   ).toHaveCount(0);
-  return parseInt((await profilePage.resultCount.innerText()).trim().split(' ')[0], 10);
+  const count = parseResultCount(await profilePage.resultCount.innerText());
+  expect(count).not.toBeNull();
+  return count as number;
 }
 
 export async function verifyUserCard(page: Page, userSearchPage: UserSearchResults): Promise<void> {

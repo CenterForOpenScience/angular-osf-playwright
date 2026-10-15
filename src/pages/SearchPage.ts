@@ -1,7 +1,13 @@
 import { Locator, expect, test } from '@playwright/test';
 
 import * as settings from '../../config/settings';
-import { present, clickExpectingPopup, waitUntilPageReady, hereThenGone } from '../utils';
+import {
+  present,
+  clickExpectingPopup,
+  waitUntilPageReady,
+  hereThenGone,
+  parseResultCount,
+} from '../utils';
 import { BasePage } from './BasePage';
 
 /**
@@ -251,6 +257,19 @@ export class SearchPage extends BasePage {
     await expect(cards.filter({ hasNotText: text })).toHaveCount(0);
   }
 
+  /**
+   * Cards list only their first few contributors followed by "and N more", so a creator
+   * further down a long contributor list (common on prod's SCORE projects) isn't on the
+   * card at all. Checks every card that lists all its contributors, plus at least one card.
+   */
+  async expectEveryResultCardToListCreator(name: string): Promise<void> {
+    const cards = this.page.locator('osf-resource-card');
+    await expect(cards.first()).toBeVisible();
+    const fullyListedCards = cards.filter({ hasNot: this.page.getByText(/^\s*and \d+ more\s*$/) });
+    await expect(fullyListedCards.filter({ hasNotText: name })).toHaveCount(0);
+    await expect(cards.filter({ hasText: name }).first()).toBeVisible();
+  }
+
   // ---------------------------------------------------------------------------
   // Port of `SearchPageHelpers`
   // ---------------------------------------------------------------------------
@@ -281,9 +300,7 @@ export class SearchPage extends BasePage {
   }
 
   async getResultsCount(): Promise<number | null> {
-    const text = await this.page.locator('h4.result-count').innerText();
-    const match = text.match(/\d+/);
-    return match ? parseInt(match[0], 10) : null;
+    return parseResultCount(await this.page.locator('h4.result-count').innerText());
   }
 
   /**
@@ -309,6 +326,9 @@ export class SearchPage extends BasePage {
   }
 
   async getRecordName(index: string): Promise<string> {
+    // Until the options load, the list's only row is "No results found" - wait for a
+    // real "Name (N)" option so the name and getRecordCount() read the same list.
+    await this.pollForRecordCount(this.optionByIndex(index));
     const text = await this.optionByIndex(index).innerText();
     return text.replace(/\s*\(\d+\)/, '').trim();
   }
@@ -331,7 +351,7 @@ export class SearchPage extends BasePage {
     await this.optionCheckboxByIndex(recordIndex).click({ force: true });
     await this.waitForResultsLoad();
     await this.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfUsers);
-    await this.expectEveryResultCardToContain(nameOfRecord);
+    await this.expectEveryResultCardToListCreator(nameOfRecord);
   }
 
   async checkFilteringByDateCreated(dateCreatedRegistered: string): Promise<void> {
@@ -463,18 +483,31 @@ export class SearchPage extends BasePage {
     if (!(await present(this.optionByIndex('1')))) {
       test.skip(true, 'Record was not found in the list');
     }
-    const nameOfRecord = await this.getRecordName('1');
     const numberOfRecords = await this.getRecordCount('1');
     const resultCountBeforeFilter = await this.getResultsCount();
+    // A funder's filter option and its card link can carry different names for the same
+    // ROR funder ("Narodowe Centrum Nauki" vs "National Science Centre", or spelling
+    // variants), so match the card's funder link by the ROR IRI the filter sends.
+    // The param key varies by tab (files filter on their project's funder), so match any
+    // `cardSearchFilter[...funder...]` key.
+    const funderParam = (url: string): string | undefined =>
+      [...new URL(url).searchParams].find(
+        ([key]) => key.startsWith('cardSearchFilter[') && key.toLowerCase().includes('funder')
+      )?.[1];
+    const filteredSearch = this.page.waitForRequest(
+      (req) => req.url().includes('index-card-search') && funderParam(req.url()) !== undefined
+    );
     await this.optionCheckboxByIndex('1').click({ force: true });
+    const funderIri = funderParam((await filteredSearch).url());
     await this.waitForResultsLoad();
     await this.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
     await this.chevronMenuFirstCard.click();
-    const recordLocator = this.page
+    const funderLink = this.page
+      .locator('osf-resource-card')
+      .first()
       .locator('p', { hasText: 'Funder:' })
-      .locator('a', { hasText: nameOfRecord })
-      .first();
-    await expect(recordLocator).toContainText(nameOfRecord);
+      .locator(`a[href="${funderIri}"]`);
+    await expect(funderLink.first()).toBeVisible();
   }
 
   async checkFilteringByPartOfCollection(): Promise<void> {

@@ -108,6 +108,7 @@ tests/
   registrationSidebar.spec.ts  # port of tests/test_registration_sidebar.py
   registrationMetadata.spec.ts # port of tests/test_registration_metadata.py
   institutions.spec.ts  # port of tests/test_institutions.py
+  preprints.spec.ts     # port of tests/test_preprints.py
 ```
 
 ## Migration status
@@ -126,7 +127,7 @@ tick it in **both** files.
 | 6 | Dashboard | `tests/test_dashboard.py` | — | [ ] Not migrated |
 | 7 | Collections | `tests/test_collections.py` | — | [ ] Not migrated |
 | 8 | Registration sidebar | `tests/test_registration_sidebar.py` | `tests/registrationSidebar.spec.ts` | [x] Migrated |
-| 9 | Preprints | `tests/test_preprints.py` | — | [ ] Not migrated |
+| 9 | Preprints | `tests/test_preprints.py` | `tests/preprints.spec.ts` | [x] Migrated |
 | 10 | Metadata | `tests/test_registration_metadata.py` | `tests/registrationMetadata.spec.ts` | [x] Migrated |
 | 11 | Institutions | `tests/test_institutions.py` | `tests/institutions.spec.ts` | [x] Migrated |
 | 12 | My projects | `tests/test_my_projects.py` | — | [ ] Not migrated |
@@ -136,7 +137,7 @@ tick it in **both** files.
 | 16 | Registration user permissions | `tests/test_registration_user_permissions.py` | — | [ ] Not migrated |
 | 17 | Registries | `tests/test_registries.py` | — | [ ] Not migrated |
 
-Progress: **8 / 17** sections migrated.
+Progress: **9 / 17** sections migrated.
 
 ## Notable differences from the Python suite
 
@@ -286,5 +287,65 @@ Progress: **8 / 17** sections migrated.
     user-facing versions of the Angular XPaths in the Python test. The Python page
     object's Ember `data-test-*` / hashed-class locators were dropped, including
     `click_on_listbox_trigger`.
+
+- **Preprints**: ports all of `test_preprints.py` - 74 tests, the same count pytest
+  collects (33 plus `test_detail_page` once per preprint provider, 41 on `test`/`uat1`; the
+  three custom-domain tests collect once each as a skipped `[NOTSET]`, as in pytest, since
+  no test environment has a custom-domain provider). The provider list is fetched while the
+  spec loads, through `osfApi.getPreprintProvidersSync()` (the institutions helper was
+  generalized into `getPublicListSync` for this). The Ember-era page objects were replaced
+  in `src/pages/PreprintPage.ts`, all verified live on uat1: adding, editing and creating a
+  new version of a preprint are one stepper (`PreprintSubmitPage` and its `Edit`/`NewVersion`
+  subclasses), withdrawing is a dialog on the detail page, and a moderator gets the same
+  detail page with `?mode=moderator` and a "Submit your decision" dialog. The moderation
+  queue opens each preprint in a new tab, and the test now checks that the opened tab is the
+  preprint it just created. Other changes:
+  - The edit form renders empty and then fills in the saved values. A title typed before
+    that is overwritten and the old title saved (seen on a new version's edit page), so
+    `PreprintEditPage.openLoaded()` waits for the form first.
+  - Steps are matched by their headings: Supplements is "Supplements (optional)", the
+    Review step starts with "Consent To Publish", and "Edit And Resubmit" has a File step
+    that a plain Edit doesn't (Python's five Next clicks).
+  - `get_preprint_downloads_count` read the primary file's `extra.downloads`, which doesn't
+    change when the preprint is downloaded from its page (stayed 0 on uat1 while the page
+    went from 1 to 2). The page shows `metrics[downloads]`, so the API helper reads that now.
+  - `test_preprint_detail_page` searched for the environment's host, because all test
+    environments share one SHARE server. The app now filters every search by environment
+    itself (`cardSearchFilter[accessService]`), and the host text returns no results, so
+    that search was dropped.
+  - A rejected preprint opened logged out now goes to the app's "forbidden" page, not a
+    404 page. The test checks for that page instead of `PreprintPageNotFoundPage`.
+  - The API returns `is_published: null`, not `false`, for a withdrawn preprint. Python's
+    `assert not` accepted that, so the published flag is compared by truthiness here too.
+  - The decision dialog shows one text box whose label depends on the decision ("Reason
+    for denial" when declining a withdrawal, not Python's `withdrawalJustification`).
+  - `test_download_new_version_preprint` checked that `~/Downloads/osf selenium test file
+    for preprints.txt` was modified today - a file the test never downloads (it uploads
+    `selenium_preprint_test.txt`), so any earlier download that day passed it. It now
+    checks the downloaded file's name through Playwright's download event.
+  - Python's contributor checks were vacuous: `get_authors_list` returned after the first
+    author, `test_add_contributors` only asserted inside `if name == new_user`, the
+    review-page checks just `break`, and `test_reorder_contributors` compared against a
+    table that isn't on the detail page (always `None`). They now check the contributor is
+    on the Review step and the detail page, and that the moved contributor is listed first.
+    `test_verify_preprint_details` now opens every author's profile, not only the last.
+  - Dates are compared as "Month D, YYYY" in the local timezone, which is how the app
+    shows them, rather than as the API's UTC date.
+  - The API setup helpers wait until their own writes are visible (`waitUntilVisible` in
+    `osfApi.ts`): on uat1 an `accept` right after `submit` was refused once with "Cannot
+    trigger accept from state initial", and WaterButler answered 404 "Guid not resolved"
+    for a just-created preprint.
+  - `project_with_file_reg` is only used by `create new preprint cancel upload from
+    computer` now - the other tests that requested it had its use commented out in Python.
+    `test_create_preprint_from_landing`'s `finally` only looked up a supplemental-project
+    guid and did nothing with it, so it wasn't ported; the test now waits for the
+    Supplements step after its last Next click. `wait_until_page_ready`, the footer
+    `scrollIntoView` calls and the `time.sleep`s were dropped per the migration rules.
+  - The workflow, moderation and overview tests get a 180s budget
+    (`LONG_FLOW_TIMEOUT_MS`): each walks several multi-step forms with several API calls.
+  - Branded-provider tests still run on production only, so they were checked against
+    uat1's discover pages (results, the detail tab, "No results found.") but not run.
+    See `CLAUDE.md` for an intermittent moderator-page failure in the withdrawal-request
+    tests.
 
 ## Next steps
