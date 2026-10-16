@@ -70,6 +70,10 @@ async function checkSearchInFilteringOptionsFor(
 // -------------------------------------------------------------------------------
 
 test.describe('Profile Page Projects Tab', () => {
+  test.beforeEach(() => {
+    test.skip(settings.PRODUCTION, 'Test should not run on production');
+  });
+
   test('filtering by creator on projects tab', async ({ profilePageShort }) => {
     await profilePageShort.projectsTabLink.click();
     await profilePageShort.checkFilteringByCreator('1');
@@ -221,6 +225,10 @@ test.describe('Profile Page Projects Tab', () => {
 // -------------------------------------------------------------------------------
 
 test.describe('Profile Page All Tab', () => {
+  test.beforeEach(() => {
+    test.skip(settings.PRODUCTION, 'Test should not run on production');
+  });
+
   test('filtering by creator on all tab', async ({ profilePageShort }) => {
     await profilePageShort.checkFilteringByCreator('1');
   });
