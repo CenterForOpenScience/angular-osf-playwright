@@ -171,7 +171,7 @@ test.describe('Institution Admin Dashboard Page', { tag: ['@core'] }, () => {
   });
 });
 
-test.describe('Institution Page Search', { tag: ['@smoke', '@core'] }, () => {
+test.describe('Institution Page Search', { tag: ['@core'] }, () => {
   test.beforeEach(async ({ throttleOnProd }) => {
     void throttleOnProd;
   });
@@ -180,7 +180,7 @@ test.describe('Institution Page Search', { tag: ['@smoke', '@core'] }, () => {
   // TestInstitutionPageSearch (5 tests)
   // -------------------------------------------------------------------------------
 
-  test.describe('Search Results', () => {
+  test.describe('Search Results', { tag: ['@smoke'] }, () => {
     test('search results exist on all tab', async ({ institutionPage }) => {
       await institutionPage.searchInput.fill('test');
       await institutionPage.searchInput.press('Enter');
