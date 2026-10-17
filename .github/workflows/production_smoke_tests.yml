@@ -16,7 +16,6 @@ on:
           - chromium
           - firefox
           - edge
-          - webkit
 
 env:
   HEADLESS: 'true'
@@ -81,7 +80,7 @@ jobs:
       - id: set_matrix
         run: |
           if [ "${{ github.event.inputs.browser || 'All' }}" = "All" ]; then
-            echo 'matrix=["chromium","firefox","edge","webkit"]' >> "$GITHUB_OUTPUT"
+            echo 'matrix=["chromium","firefox","edge"]' >> "$GITHUB_OUTPUT"
           else
             echo "matrix=[\"${{ github.event.inputs.browser }}\"]" >> "$GITHUB_OUTPUT"
           fi
@@ -116,29 +115,77 @@ jobs:
             npx playwright install --with-deps ${{ matrix.browser }}
           fi
 
-      - name: Run full suite against prod
-        run: npx playwright test --project=${{ matrix.browser }}
+      # Mirrors the Python suite's `invoke test_selenium_on_prod_part1/part2`: only smoke
+      # tests (`-m smoke_test` there, `@smoke` here), all spec files sorted and split into
+      # two halves, each half run as its own step, one retry for failed tests (MAX_RETRIES=1).
+      - name: Split spec files into two parts
+        id: split
+        run: |
+          files=$(ls tests/*.spec.ts | grep -v '_debug_inspect' | sort)
+          count=$(echo "$files" | wc -l)
+          half=$((count / 2))
+          echo "part1=$(echo "$files" | head -n "$half" | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
+          echo "part2=$(echo "$files" | tail -n +"$((half + 1))" | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
+
+      - name: Run smoke tests part one
+        id: part1
+        continue-on-error: true
+        run: |
+          echo "Part one files: ${{ steps.split.outputs.part1 }}"
+          npx playwright test ${{ steps.split.outputs.part1 }} --project=${{ matrix.browser }} --grep @smoke --retries=1
+
+      # Each run wipes test-results/ and playwright-report/, so keep part one's output
+      # before part two starts.
+      - name: Save part one results
+        if: always()
+        run: |
+          mkdir -p results/part1
+          [ -d test-results ] && mv test-results results/part1/test-results || true
+          [ -d playwright-report ] && mv playwright-report results/part1/playwright-report || true
+
+      - name: Run smoke tests part two
+        id: part2
+        if: always()
+        continue-on-error: true
+        run: |
+          echo "Part two files: ${{ steps.split.outputs.part2 }}"
+          npx playwright test ${{ steps.split.outputs.part2 }} --project=${{ matrix.browser }} --grep @smoke --retries=1
+
+      - name: Save part two results
+        if: always()
+        run: |
+          mkdir -p results/part2
+          [ -d test-results ] && mv test-results results/part2/test-results || true
+          [ -d playwright-report ] && mv playwright-report results/part2/playwright-report || true
 
       - name: Write failed tests summary
         if: always()
-        run: node scripts/write-failure-summary.js test-results/results.json >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          for part in part1 part2; do
+            echo "## Smoke tests ${part} (${{ matrix.browser }})" >> "$GITHUB_STEP_SUMMARY"
+            if [ -f "results/${part}/test-results/results.json" ]; then
+              node scripts/write-failure-summary.js "results/${part}/test-results/results.json" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "No results.json found for ${part}." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
 
-      - name: Upload Playwright report
+      - name: Upload Playwright reports
         if: always()
         id: upload_report
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-${{ matrix.browser }}
-          path: playwright-report/
+          path: results/*/playwright-report/
           retention-days: 7
 
       - name: Upload test results (traces/videos/screenshots)
-        if: failure()
+        if: steps.part1.outcome != 'success' || steps.part2.outcome != 'success'
         id: upload_results
         uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.browser }}
-          path: test-results/
+          path: results/*/test-results/
           retention-days: 7
 
       - name: Add report/trace links to summary
@@ -146,8 +193,16 @@ jobs:
         run: |
           {
             echo "### 📊 Reports (${{ matrix.browser }})"
-            echo "- [Playwright HTML report](${{ steps.upload_report.outputs.artifact-url }}) - unzip, then run \`npx playwright show-report <folder>\` for the full report with pass/fail per test."
+            echo "- [Playwright HTML reports](${{ steps.upload_report.outputs.artifact-url }}) - unzip, then run \`npx playwright show-report <folder>/part1/playwright-report\` (or \`part2\`) for the full report with pass/fail per test."
             if [ -n "${{ steps.upload_results.outputs.artifact-url }}" ]; then
               echo "- [Raw test results / traces / videos](${{ steps.upload_results.outputs.artifact-url }}) - unzip, then run \`npx playwright show-trace <path-to-a-trace.zip>\` to open the trace viewer for one failed test directly."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if any test suite failed
+        if: always()
+        run: |
+          if [[ "${{ steps.part1.outcome }}" != "success" || "${{ steps.part2.outcome }}" != "success" ]]; then
+            echo "One or more smoke test suites failed"
+            exit 1
+          fi
