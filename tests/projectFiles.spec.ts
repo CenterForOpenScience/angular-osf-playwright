@@ -45,58 +45,19 @@ async function findFolderBySearch(filesPage: FilesPage, targetFolderName: string
 }
 
 async function verifyFileDownload(
-    page: Page,
-    filesPage: FilesPage,
     fileName: string,
-    provider: string
 ) {
     /**
      * Helper function to verify the file download functionality on the Project Files page.
      */
 
-    // If running on local machine, first check if the download file already exists
-    // in the Downloads folder. If so then delete the old copy before attempting to
-    // download a new one.
-    const filePath = path.join(os.homedir(), 'Downloads', fileName);
-    if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-    }
-
-    const rowPromise = findFileBySearch(filesPage, fileName);
-    const row = await rowPromise;
-    if (!row) {
-        throw new Error(`Could not find row for file: ${fileName}`);
-    }
-
-    // Click the File Action menu button at the far right side of the row to show the
-    // menu options. Then click the Download option from this menu.
-    const menuButton = row.locator(
-        'button.p-ripple.p-button.p-button-contrast.p-button-icon-only.p-button-raised.p-button-sm.p-button-text.p-component'
-    );
-    await menuButton.click();
-
-
-    // The menu overlay renders outside the row (PrimeNG overlay), so scope to page, not row
-    const downloadPromise = page.waitForEvent('download');
-    const downloadButton = page.locator('li#download'); // overlay renders via appendto="body", outside row
-    await downloadButton.click();
-    const download = await downloadPromise;
-
     // Save it explicitly to a known path (or just verify via the Download object's own API)
     const downloadPath = path.join(os.homedir(), 'Downloads', fileName);
-    await download.saveAs(downloadPath);
-
-    await filesPage.reload();
-
-    if (provider !== 'osfstorage') {
-        //await filesPage.selectAddon.click();
-        await filesPage.selectFromAddonList(provider);
-    }
 
     const currentDate = new Date();
-    expect(fs.existsSync(filePath)).toBeTruthy();
+    expect(fs.existsSync(downloadPath)).toBeTruthy();
 
-    const stats = fs.statSync(filePath);
+    const stats = fs.statSync(downloadPath);
     const fileModDate = new Date(stats.mtime);
     expect(fileModDate.toDateString()).toBe(currentDate.toDateString());
 }
@@ -201,11 +162,11 @@ async function sortAndVerify(page: Page, filesPage: { selectSortFromList(o: stri
  
   // Shows what the test actually saw, so you can compare it with the page while debugging
   const rows = await readRows(page);
-  //console.log(`[${sort.label}]\n` + rows.map((r) => `  ${r.name}  |  ${r.dateText || '-'}`).join('\n'));
+
 }
  
 
-// Example parameterized test replacing python's provider fixture
+// Parameterized test for addons storage providers
 const UNSUPPORTED_PROVIDERS = ['bitbucket', 'dataverse', 'figshare', 'gitlab', 'onedrive'];
 const providers = ['osfstorage', 's3', 'box', 'bitbucket', 'dataverse', 'dropbox', 'figshare', 'github', 'gitlab', 'googledrive', 'onedrive', 'owncloud'];
 //const providers = ['osfstorage', 'box'];
@@ -219,17 +180,44 @@ test.describe('Project Files Page', { tag: '@core' }, () => {
         test(`download a single file from ${provider}`, async ({ page, filesPage }) => {
             test.skip(UNSUPPORTED_PROVIDERS.includes(provider), 'Functionality not supported');
             // Substitute with your actual project ID or fixture login
-            const currentBrowser = page.context().browser()?.browserType().name();
-            const currentBrowserName: string = currentBrowser === 'chromium' ? 'chrome' : (currentBrowser ?? 'unknown');
-            const fileName = 'download_' + currentBrowserName + '_' + provider + '.txt';
+          const currentBrowser = page.context().browser()?.browserType().name();
+          const currentBrowserName: string = currentBrowser === 'chromium' ? 'chrome' : (currentBrowser ?? 'unknown');
+          const fileName = 'download_' + currentBrowserName + '_' + provider + '.txt';
+          const filePath = path.join(os.homedir(), 'Downloads', fileName);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
 
-            if (provider !== 'osfstorage') {
-                await filesPage.selectFromAddonList(provider);
-            }
+          if (provider !== 'osfstorage') {
+            await filesPage.selectFromAddonList(provider);
+          }
 
-            // Trigger and verify download
+          // Trigger download and verify download path for existance of downloaded file
+          const rowPromise = findFileBySearch(filesPage, fileName);
+          const row = await rowPromise;
+          if (!row) {
+            throw new Error(`Could not find row for file: ${fileName}`);
+          }
 
-            await verifyFileDownload(page, filesPage, fileName, provider)
+          // Click the File Action menu button at the far right side of the row to show the
+          // menu options. Then click the Download option from this menu.
+          const menuButton = row.locator(
+            'button.p-ripple.p-button.p-button-contrast.p-button-icon-only.p-button-raised.p-button-sm.p-button-text.p-component'
+          );
+          await menuButton.click();
+
+
+          // The menu overlay renders outside the row (PrimeNG overlay), so scope to page, not row
+          const downloadPromise = page.waitForEvent('download');
+          const downloadButton = page.locator('li#download'); // overlay renders via appendto="body", outside row
+          await downloadButton.click();
+          const download = await downloadPromise;
+
+          // Save it explicitly to a known path (or just verify via the Download object's own API)
+          const downloadPath = path.join(os.homedir(), 'Downloads', fileName);
+          await download.saveAs(downloadPath);
+
+          await verifyFileDownload(fileName)
 
         });
     }
@@ -276,19 +264,7 @@ test.describe('Project Files Page', { tag: '@core' }, () => {
             const downloadPath = path.join(os.homedir(), 'Downloads', downloadFolderName);
             await download.saveAs(downloadPath);
 
-            await filesPage.reload();
-
-            if (provider !== 'osfstorage') {
-                await filesPage.selectFromAddonList(provider);
-            }
-
-            const currentDate = new Date();
-            expect(fs.existsSync(downloadPath)).toBeTruthy();
-
-            const stats = fs.statSync(downloadPath);
-            const fileModDate = new Date(stats.mtime);
-            expect(fileModDate.toDateString()).toBe(currentDate.toDateString());
-
+            await verifyFileDownload(downloadFolderName)
 
         });
     }
@@ -329,19 +305,7 @@ for (const provider of providers) {
         const downloadPath = path.join(os.homedir(), 'Downloads', downloadFolderName);
         await download.saveAs(downloadPath);
 
-        await filesPage.reload();
-
-        if (provider !== 'osfstorage') {
-            await filesPage.selectFromAddonList(provider);
-        }
-
-        const currentDate = new Date();
-        expect(fs.existsSync(downloadPath)).toBeTruthy();
-
-        const stats = fs.statSync(downloadPath);
-        const fileModDate = new Date(stats.mtime);
-        expect(fileModDate.toDateString()).toBe(currentDate.toDateString());
-
+        await verifyFileDownload(downloadFolderName)
 
     });
 }
@@ -368,18 +332,7 @@ for (const provider of providers) {
         const downloadPath = path.join(os.homedir(), 'Downloads', folderName);
         await download.saveAs(downloadPath);
 
-        await filesPage.reload();
-
-        if (provider !== 'osfstorage') {
-            await filesPage.selectFromAddonList(provider);
-        }
-
-        const currentDate = new Date();
-        expect(fs.existsSync(downloadPath)).toBeTruthy();
-
-        const stats = fs.statSync(downloadPath);
-        const fileModDate = new Date(stats.mtime);
-        expect(fileModDate.toDateString()).toBe(currentDate.toDateString());
+        await verifyFileDownload(folderName)
 
     });
 }

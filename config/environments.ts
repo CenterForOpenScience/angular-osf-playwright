@@ -4,6 +4,7 @@ export type EnvironmentName =
   | 'stage3'
   | 'stage4'
   | 'test'
+  | 'test1'
   | 'test2'
   | 'test3'
   | 'test4'
@@ -66,6 +67,15 @@ export const environments: Record<EnvironmentName, EnvironmentConfig> = {
     customInstitutionDomains: [],
     addons: 'https://addons.test.osf.io',
     addonTokenEnvVar: 'USER_ONE_TEST_PAT',
+  },
+  test1: {
+    home: 'https://test1.osf.io',
+    api: 'https://api.test1.osf.io',
+    files: 'https://files.us.test1.osf.io',
+    cas: 'https://accounts.test1.osf.io',
+    customInstitutionDomains: ['https://test1-osf-nd.cos.io'],
+    addons: 'https://addons.test1.osf.io',
+    addonTokenEnvVar: 'USER_ONE_TEST1_PAT',
   },
   test2: {
     home: 'https://test2.osf.io',

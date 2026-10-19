@@ -2,6 +2,7 @@ import { Page, Locator, expect } from '@playwright/test';
 import { GuidBasePage } from './GuidBasePage';
 import * as settings from '../../config/settings';
 
+
 export class FilesPage extends GuidBasePage {
   static baseUrl = '{guid}/files/{provider}';
   addonProvider: string;
