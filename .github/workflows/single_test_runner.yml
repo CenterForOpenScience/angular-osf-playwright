@@ -27,6 +27,7 @@ on:
         options:
           - institutions.spec.ts
           - login.spec.ts
+          - myPreprints.spec.ts
           - navbar.spec.ts
           - preprints.spec.ts
           - profile.spec.ts
