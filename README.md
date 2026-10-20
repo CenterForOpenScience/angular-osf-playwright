@@ -109,6 +109,7 @@ tests/
   registrationMetadata.spec.ts # port of tests/test_registration_metadata.py
   institutions.spec.ts  # port of tests/test_institutions.py
   preprints.spec.ts     # port of tests/test_preprints.py
+  myPreprints.spec.ts   # port of tests/test_my_preprints.py
 ```
 
 ## Migration status
@@ -132,12 +133,12 @@ tick it in **both** files.
 | 11 | Institutions | `tests/test_institutions.py` | `tests/institutions.spec.ts` | [x] Migrated |
 | 12 | My projects | `tests/test_my_projects.py` | — | [ ] Not migrated |
 | 13 | My registrations | `tests/test_my_registrations.py` | — | [ ] Not migrated |
-| 14 | My preprints | `tests/test_my_preprints.py` | — | [ ] Not migrated |
+| 14 | My preprints | `tests/test_my_preprints.py` | `tests/myPreprints.spec.ts` | [x] Migrated |
 | 15 | Registration moderation | `tests/test_registration_moderation.py` | — | [ ] Not migrated |
 | 16 | Registration user permissions | `tests/test_registration_user_permissions.py` | — | [ ] Not migrated |
 | 17 | Registries | `tests/test_registries.py` | — | [ ] Not migrated |
 
-Progress: **9 / 17** sections migrated.
+Progress: **10 / 17** sections migrated.
 
 ## Notable differences from the Python suite
 
@@ -347,5 +348,32 @@ Progress: **9 / 17** sections migrated.
     uat1's discover pages (results, the detail tab, "No results found.") but not run.
     See `CLAUDE.md` for an intermittent moderator-page failure in the withdrawal-request
     tests.
+
+- **My preprints**: ports all of `test_my_preprints.py` - 6 tests, the same count pytest
+  collects. `MyPreprintsPage` lives in `src/pages/PreprintPage.ts` (Python kept it in
+  `pages/preprints.py` too); the create test reuses the `PreprintSubmitPage` stepper from
+  the Preprints section. All locators were checked live on `test`. Changes:
+  - Filtering, sorting and paging reload the table from `/v2/users/me/preprints/`, and
+    the old rows stay up until the new ones render. Python waited for skeleton rows and
+    spinners and slept. `MyPreprintsPage.filterBy()`/`sortBy()` instead capture that
+    request's response through `page.route` and wait until the table shows its titles.
+    Reading the body afterwards with `waitForResponse` failed once on Chromium ("No data
+    found for resource").
+  - The sort checks asserted that `th[psortablecolumn] svg` was displayed - an icon that
+    is there in every sort state, so it proved nothing. The tests now check the column
+    header's `aria-sort` (`ascending`/`descending`), then the order of the rows as before.
+  - `create preprint on my preprints` checked `PreprintLandingPage` right after opening
+    My Preprints and clicked an "Add a Preprint" button it located by hand. The test now
+    clicks My Preprints' own "Add a Preprint" button and goes on from the provider page.
+    Unlike `create preprint from landing`, it submits the preprint and checks the detail
+    page's title, as Python did. The `finally` that deletes a supplemental project is
+    kept, with the logged-not-raised cleanup pattern; the test doesn't add one, so it
+    normally finds nothing. Python's `test1` provider (`Selenium Pre-moderation`) isn't
+    ported because this project has no `test1` environment.
+  - The unused `create_single_preprint` fixture wasn't ported. The preprints the tests
+    create are left in place, as in Python: a submitted preprint can't be deleted
+    through the API.
+  - `get_modified_dates_from_table` is ported into `BasePage` as
+    `getModifiedDatesFromTable()`, ready for the My Projects/My Registrations sections.
 
 ## Next steps

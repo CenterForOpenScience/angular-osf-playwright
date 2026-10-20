@@ -34,6 +34,7 @@ on:
           - All
           - Institutions
           - Login
+          - MyPreprints
           - Navbar
           - Preprints
           - Profile
@@ -176,6 +177,7 @@ jobs:
           case "${{ needs.set_variables.outputs.service }}" in
             Institutions) echo "path=tests/institutions.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Login) echo "path=tests/login.spec.ts" >> "$GITHUB_OUTPUT" ;;
+            MyPreprints) echo "path=tests/myPreprints.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Navbar) echo "path=tests/navbar.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Preprints) echo "path=tests/preprints.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Profile) echo "path=tests/profile.spec.ts" >> "$GITHUB_OUTPUT" ;;

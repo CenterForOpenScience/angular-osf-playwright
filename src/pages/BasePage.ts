@@ -67,6 +67,22 @@ export abstract class BasePage {
     });
   }
 
+  /**
+   * Port of `get_modified_dates_from_table` - reads the "Modified" column (third cell,
+   * e.g. "Oct 9, 2026, 3:46 PM") of every row in the My Projects/Registrations/Preprints
+   * tables.
+   */
+  async getModifiedDatesFromTable(): Promise<Date[]> {
+    const texts = await this.page.locator('tbody tr td:nth-child(3)').allInnerTexts();
+    return texts.map((text) => {
+      const date = new Date(text.trim());
+      if (Number.isNaN(date.getTime())) {
+        throw new Error(`Could not parse date "${text}"`);
+      }
+      return date;
+    });
+  }
+
   /** Port of `pages/base.py`'s `BasePage.assert_sorting`. */
   assertSorting(dates: Date[], order: 'ascending' | 'descending' = 'ascending'): void {
     // An empty or single-item list is trivially "sorted" - require real data so a

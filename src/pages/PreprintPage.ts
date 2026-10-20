@@ -1,4 +1,4 @@
-import { BrowserContext, Locator, Page, Request, expect } from '@playwright/test';
+import { BrowserContext, Locator, Page, Request, Route, expect } from '@playwright/test';
 
 import * as settings from '../../config/settings';
 import { PreprintProvider } from '../api/osfApi';
@@ -736,5 +736,111 @@ export class PreprintModerationPage extends BasePage {
     // So that `PreprintPage.waitUntilLoaded` sees the new tab's requests from the start.
     trackApiTraffic(this.page);
     return clickExpectingPopup(this.page, item);
+  }
+}
+
+/** The sortable columns of the My Preprints table, by header text, and their API sort field. */
+const MY_PREPRINTS_SORT_FIELDS = { Title: 'title', Modified: 'date_modified' } as const;
+
+/**
+ * Port of `MyPreprintsPage` (`/my-preprints`). Filtering, sorting and paging all reload
+ * the table from `/v2/users/me/preprints/`, and the old rows stay up until the new ones
+ * render - so every action here waits for its own request and then for the table to show
+ * what it returned (`syncWithList`). The Python sort icons (`th[psortablecolumn] svg`)
+ * were there in every sort state, so the column headers' `aria-sort` is checked instead.
+ */
+export class MyPreprintsPage extends BasePage {
+  get url(): string {
+    return `${settings.OSF_HOME}/my-preprints`;
+  }
+
+  get identity(): Locator {
+    return this.page.getByRole('heading', { level: 1, name: 'My Preprints', exact: true });
+  }
+
+  get addPreprintButton(): Locator {
+    return this.page.getByRole('button', { name: 'Add a Preprint', exact: true });
+  }
+
+  get filterInput(): Locator {
+    return this.page.getByPlaceholder('Filter by title, description, and tags');
+  }
+
+  /** The table's preprint rows - not the skeleton rows shown while it loads. */
+  get rows(): Locator {
+    return this.page
+      .locator('osf-my-preprints tbody')
+      .getByRole('row')
+      .filter({ hasNot: this.page.locator('p-skeleton') });
+  }
+
+  get titleCells(): Locator {
+    return this.rows.locator('td:first-child');
+  }
+
+  /** Port of `is_preprint_visible` - the rows whose title is exactly `title`. */
+  rowWithTitle(title: string): Locator {
+    return this.rows.filter({
+      has: this.page.getByRole('cell', { name: title, exact: true }),
+    });
+  }
+
+  columnHeader(name: keyof typeof MY_PREPRINTS_SORT_FIELDS): Locator {
+    return this.page.getByRole('columnheader', { name, exact: true });
+  }
+
+  /** Waits for the table's first load. */
+  async waitUntilLoaded(): Promise<void> {
+    await expect(this.rows.first()).toBeVisible();
+    await expect(this.filterInput).toBeVisible();
+  }
+
+  /**
+   * Runs `action`, waits for the preprints list request it causes (the one whose query
+   * matches `matches`), then until the table shows the titles the latest such request
+   * returned. The response is read as it passes through a route: reading it afterwards
+   * with `waitForResponse` failed once on Chromium ("No data found for resource"), the
+   * body already discarded.
+   */
+  private async syncWithList(
+    matches: (query: URLSearchParams) => boolean,
+    action: () => Promise<void>
+  ): Promise<void> {
+    let titles: string[] | null = null;
+    const isListRequest = (url: URL) =>
+      url.pathname.endsWith('/v2/users/me/preprints/') && matches(url.searchParams);
+    const captureTitles = async (route: Route) => {
+      const response = await route.fetch();
+      const data = await response.json();
+      titles = (data.data as any[]).map((preprint) => preprint.attributes.title);
+      await route.fulfill({ response });
+    };
+    await this.page.route(isListRequest, captureTitles);
+    try {
+      await action();
+      await expect(async () => {
+        expect(titles, 'preprints list request answered').not.toBeNull();
+        expect(await this.titleCells.allInnerTexts()).toEqual(titles);
+      }).toPass({ timeout: settings.TIMEOUT_MS });
+    } finally {
+      await this.page.unroute(isListRequest, captureTitles);
+    }
+  }
+
+  /** Types into the filter box; the table filters by title, description and tags. */
+  async filterBy(text: string): Promise<void> {
+    await this.syncWithList(
+      (query) => query.get('filter[title,tags,description]') === text,
+      () => this.filterInput.fill(text)
+    );
+  }
+
+  /** Clicks a column header - the first click sorts ascending, the next descending. */
+  async sortBy(column: keyof typeof MY_PREPRINTS_SORT_FIELDS): Promise<void> {
+    const field = MY_PREPRINTS_SORT_FIELDS[column];
+    await this.syncWithList(
+      (query) => query.get('sort')?.replace(/^-/, '') === field,
+      () => this.columnHeader(column).click()
+    );
   }
 }

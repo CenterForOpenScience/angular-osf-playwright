@@ -1442,6 +1442,21 @@ export async function getPreprintFileName(session: OsfSession, preprintId: strin
   return data.data[0].attributes.name;
 }
 
+/** Port of `get_preprints_list_for_user` - the current user's preprints (first page). */
+export async function getPreprintsListForUser(session: OsfSession): Promise<any[]> {
+  const data = await session.get('/v2/users/me/preprints/');
+  return data.data;
+}
+
+/** Port of `get_preprint_supplemental_material_guid` - the linked project's guid, if any. */
+export async function getPreprintSupplementalMaterialGuid(
+  session: OsfSession,
+  preprintId: string
+): Promise<string | null> {
+  const data = await session.get(`/v2/preprints/${preprintId}/relationships/node/`);
+  return data.data?.id ?? null;
+}
+
 /**
  * The preprint record. Stands in for the Python `get_preprint_file_version`,
  * `get_preprint_created_date`, `get_preprint_modified_date`,
