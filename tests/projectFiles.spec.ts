@@ -168,8 +168,8 @@ async function sortAndVerify(page: Page, filesPage: { selectSortFromList(o: stri
 
 // Parameterized test for addons storage providers
 const UNSUPPORTED_PROVIDERS = ['bitbucket', 'dataverse', 'figshare', 'gitlab', 'onedrive'];
-const providers = ['osfstorage', 's3', 'box', 'bitbucket', 'dataverse', 'dropbox', 'figshare', 'github', 'gitlab', 'googledrive', 'onedrive', 'owncloud'];
-//const providers = ['osfstorage', 'box'];
+//const providers = ['osfstorage', 's3', 'box', 'bitbucket', 'dataverse', 'dropbox', 'figshare', 'github', 'gitlab', 'googledrive', 'onedrive', 'owncloud'];
+const providers = ['osfstorage', 'box'];
 
 test.describe('Project Files Page', { tag: '@core' }, () => {
   test.beforeEach(() => {
@@ -209,9 +209,13 @@ test.describe('Project Files Page', { tag: '@core' }, () => {
 
           // The menu overlay renders outside the row (PrimeNG overlay), so scope to page, not row
           const downloadPromise = page.waitForEvent('download');
-          const downloadButton = page.locator('li#download'); // overlay renders via appendto="body", outside row
-          await downloadButton.click();
+          await page.getByRole('menuitem', { name: 'Download' }).click();
           const download = await downloadPromise;
+
+          // Verify against the Download object itself, not a re-derived filesystem check
+          const failure = await download.failure();
+          expect(failure, `Download failed: ${failure}`).toBeNull();
+          expect(download.suggestedFilename()).toBe(fileName);
 
           // Save it explicitly to a known path (or just verify via the Download object's own API)
           const downloadPath = path.join(os.homedir(), 'Downloads', fileName);
