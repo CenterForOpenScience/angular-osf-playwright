@@ -25,6 +25,8 @@ export class AddonsPage extends GuidBasePage {
     readonly addonCardTitle: Locator;
     readonly connectedTabEmpty: Locator;
     readonly addonCardLogo: Locator;
+    readonly configureButton: Locator;
+    readonly addonCardActionButton: Locator;
 
     constructor(
         page: Page,
@@ -47,7 +49,8 @@ export class AddonsPage extends GuidBasePage {
         this.addonsDropdownTrigger = page.getByRole('button', { name: 'dropdown trigger' });
         this.selectOption = page.getByRole('option', { name: 'settings.addons.categories.additionalService' })
         this.addonCardLogo = page.getByRole('img', { name: 'Addon card image', exact: true });
-
+        this.configureButton = page.getByRole('button', { name: 'Configure', exact: true });
+        this.addonCardActionButton = page.getByRole('button', { name: /^\s*(Connect|Configure)\s*$/ });
     }
 
 
@@ -74,8 +77,14 @@ export class AddonsPage extends GuidBasePage {
     //     await this.page.getByRole('option', { name: 'settings.addons.categories.'+(option)}).click();
     // }
 
-    async selectFromAddonDropdown(option: string): Promise<void> {
-        await this.addonsDropdownTrigger.click();
+    tabPanel(tabName: string): Locator {
+        return this.page.getByRole('tabpanel', { name: tabName, exact: true });
+    }
+
+    async selectFromAddonDropdown(option: string, tabName?: string): Promise<void> {
+        const scope = tabName ? this.tabPanel(tabName) : this.page;
+        await scope.getByRole('button', { name: 'dropdown trigger' }).click();
+        //await this.addonsDropdownTrigger.click();
         const normalizedOption = option.trim().replace(/\s+/g, ' ');
         await this.page.locator('p-selectitem')
             .filter({
@@ -120,11 +129,20 @@ export class AddonsPage extends GuidBasePage {
             .toEqual(expected);
     }
 
-    /** Logo for the card whose title matches provider. */
-    async addonProviderLogo(provider: string): Promise<Locator> {
+    async expectSearchResults(term: string): Promise<void> {
+        const target = AddonsPage.normalize(term);
+        await expect
+            .poll(async () => {
+                const names = await this.addonCardNames();
+                return names.includes(target) && names.every((n) => n.includes(target));
+            }, { message: `Search results for "${term}" did not update` })
+            .toBe(true);
+    }
+
+    /** Finds the item belonging to provider's card: one item per card, in card order. */
+    private async pairedWithCard(provider: string, items: Locator, what: string): Promise<Locator> {
         const target = AddonsPage.normalize(provider);
 
-        // Retries: the list may still be switching after a filter change
         let titles: string[] = [];
         await expect
             .poll(async () => (titles = await this.addonCardNames()), {
@@ -132,13 +150,21 @@ export class AddonsPage extends GuidBasePage {
             })
             .toContain(target);
 
-        // Logos are paired with titles by position, so the counts must match
         await expect(
-            this.addonCardLogo,
-            `Expected one logo per card (${titles.length} cards). A card is missing its logo, so logos can't be matched by position`,
+            items,
+            `Expected one ${what} per card (${titles.length} cards), so ${what}s can't be matched by position`,
         ).toHaveCount(titles.length);
 
-        return this.addonCardLogo.nth(titles.indexOf(target));
+        return items.nth(titles.indexOf(target));
+    }
+
+    /** Logo for the card whose title matches provider. */
+    async addonProviderLogo(provider: string): Promise<Locator> {
+        return this.pairedWithCard(provider, this.addonCardLogo, 'logo');
+    }
+
+    async addonCardAction(provider: string): Promise<Locator> {
+        return this.pairedWithCard(provider, this.addonCardActionButton, 'Connect/Configure button');
     }
 
     async getAddonProviderLogo(provider: string): Promise<string | null> {
@@ -155,6 +181,25 @@ export class AddonsPage extends GuidBasePage {
             this.addonCard(addon).getByRole('button', { name: 'Connect', exact: true }),
             `Addon "${addon}" not disconnected`,
         ).toBeVisible();
+    }
+
+    /** Search the All Add-ons tab. fill() clears the field first, like clear() + send_keys(). */
+    async searchAddon(name: string, tabName?: string): Promise<void> {
+        const input = tabName
+            ? this.tabPanel(tabName).getByPlaceholder('Search add-ons', { exact: true })
+            : this.searchInput.first();
+        await input.fill(name);
+    }
+
+    /** Card names shown in one tab, normalised like addonCardNames(). */
+    async tabCardNames(tabName: string): Promise<string[]> {
+        return (await this.tabPanel(tabName).getByRole('heading', { level: 3 }).allInnerTexts())
+            .map(AddonsPage.normalize);
+    }
+
+    /** "No results found." inside one tab. */
+    tabNoResults(tabName: string): Locator {
+        return this.tabPanel(tabName).getByText('No results found.', { exact: true });
     }
 
 }
