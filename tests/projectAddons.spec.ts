@@ -73,7 +73,7 @@ const addonTypeConfig: Record<string, { label: string; url: string }> = {
     },
 };
 
-const logoTests = [
+const testableAddons = [
     ...storageAddons.map((provider) => ({ provider, type: addonTypeConfig.additionalService })),
     ...citationAddons.map((provider) => ({ provider, type: addonTypeConfig.citationManager })),
 ];
@@ -98,7 +98,7 @@ test.describe('Project addons page', { tag: ['@smoke', '@core'] }, () => {
             await addonsPage.clickOnTab('All Add-ons');
 
             // Select Addon type from dropdown
-            await addonsPage.selectFromAddonDropdown(config.label);
+            await addonsPage.selectFromAddonDropdown(config.label, 'All Add-ons');
 
             // Actual results list
             const addonTitles = addonsPage.addonCardTitle;
@@ -114,15 +114,15 @@ test.describe('Project addons page', { tag: ['@smoke', '@core'] }, () => {
     }
 
     // Equivalent of @pytest.mark.parametrize('provider', testable_addons + citation_addons)
-    for (const { provider, type } of logoTests) {
+    for (const { provider, type } of testableAddons) {
         test(`addon logo is correct: ${provider}`, async ({ addonsPage }) => {
             const expectedNames = await fetchAddonNames(type.url);
             await addonsPage.clickOnTab('All Add-ons');
 
             if (storageAddons.includes(provider)) {
-                await addonsPage.selectFromAddonDropdown('Additional Storage');
+                await addonsPage.selectFromAddonDropdown('Additional Storage', 'All Add-ons');
             } else if (citationAddons.includes(provider)) {
-                await addonsPage.selectFromAddonDropdown('Citation Manager');
+                await addonsPage.selectFromAddonDropdown('Citation Manager', 'All Add-ons');
             }
 
             // The filter actually applied: only this type's add-ons are listed
@@ -133,6 +133,46 @@ test.describe('Project addons page', { tag: ['@smoke', '@core'] }, () => {
                 await addonsPage.addonProviderLogo(provider),
                 `Expected ${fileName} as the logo for ${provider}`,
             ).toHaveAttribute('src', logoFilePattern(fileName));
+        });
+    }
+
+    for (const { provider, type } of testableAddons) {
+        test(`verify connected tab shows only configured ${provider} `, async ({ addonsPage }) => {
+            // Search for the add-on on the All Add-ons tab
+            await addonsPage.clickOnTab('All Add-ons');
+            if (storageAddons.includes(provider)) {
+                await addonsPage.selectFromAddonDropdown('Additional Storage','All Add-ons' );
+            } else if (citationAddons.includes(provider)) {
+                await addonsPage.selectFromAddonDropdown('Citation Manager','All Add-ons');
+            }
+            await addonsPage.searchAddon(provider);
+
+            await addonsPage.expectSearchResults(provider);
+
+            // The button on this provider's own card
+            const action = await addonsPage.addonCardAction(provider);
+            await expect(action).toHaveAccessibleName(/^(Connect|Configure)$/);
+            const label = (await action.innerText()).trim();
+            const connectedTab = 'Connected Add-ons';
+
+            await addonsPage.clickOnTab('Connected Add-ons');
+            if (storageAddons.includes(provider)) {
+                await addonsPage.selectFromAddonDropdown('Additional Storage', connectedTab);
+            } else if (citationAddons.includes(provider)) {
+                await addonsPage.selectFromAddonDropdown('Citation Manager', connectedTab);
+            }
+            await addonsPage.searchAddon(provider, connectedTab);
+            if (label === 'Connect') {
+                const message = `${provider} is not connected: card shows "Connect" instead of "Configure"`;
+                test.info().annotations.push({ type: 'not connected', description: message });
+                console.log(message);
+                await expect(addonsPage.connectedTabEmpty).toBeVisible();
+                return;
+            }
+            else {
+                expect(label, `Configure button should be shown for ${provider}`).toBe('Configure');
+            }
+            
         });
     }
 });
