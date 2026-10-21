@@ -3,12 +3,6 @@ import { execFileSync } from 'child_process';
 import * as settings from '../../config/settings';
 import { createAddonSession, createSession, OsfApiError, OsfSession } from './session';
 
-/**
- * Port of the subset of `api/osf_api.py` that `tests/conftest.py`'s fixtures, plus
- * `tests/test_user.py`, depend on. Function names/signatures mirror the Python
- * originals (snake_case -> camelCase) so the two stay easy to cross-reference during
- * migration.
- */
 
 export interface OsfUser {
   id: string;

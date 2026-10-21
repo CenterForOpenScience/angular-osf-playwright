@@ -457,8 +457,7 @@ test.describe('Profile Page Registrations Tab', () => {
     const nameOfRecord = await profilePageShort.getRecordName('1');
     const numberOfRecords = await profilePageShort.getRecordCount('1');
     const resultCountBeforeFilter = await profilePageShort.getResultsCount();
-    await profilePageShort.optionCheckboxByIndex('1').click({ force: true });
-    await profilePageShort.waitForResultsLoad();
+    await profilePageShort.waitForResults(() => profilePageShort.optionCheckboxByIndex('1').click({ force: true }));
     await profilePageShort.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
     await profilePageShort.chevronMenuFirstCard.click();
     const recordLocator = page.locator('p', { hasText: 'Registration Template' }).first();

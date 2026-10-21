@@ -1,7 +1,6 @@
 import { Page, Locator, expect } from '@playwright/test';
 import { GuidBasePage } from './GuidBasePage';
 import * as settings from '../../config/settings';
-import { present, clickExpectingPopup, waitUntilPageReady, hereThenGone } from '../utils';
 
 export class FilesPage extends GuidBasePage {
   static baseUrl = '{guid}/files/{provider}';

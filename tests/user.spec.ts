@@ -27,9 +27,7 @@ import {
   waitForOverlayToDisappear,
   pageRefreshWithCleanStorages,
   getUserNameFromHeader,
-  hereThenGone,
   present,
-  waitUntilPageReady,
 } from '../src/utils';
 
 /**
@@ -162,7 +160,7 @@ test.describe('User Settings', () => {
     expect(await profileSettingsPage.middleNameInput.inputValue()).not.toBe(newName);
     await profileSettingsPage.middleNameInput.fill(newName);
     await profileSettingsPage.saveButton.click();
-    await hereThenGone(profileSettingsPage.updateSuccess);
+    await expect(profileSettingsPage.updateSuccess).toBeVisible();
     await page.reload();
     await expect(profileSettingsPage.middleNameInput).toHaveValue(newName, { timeout: 10000 });
   });
@@ -1247,10 +1245,8 @@ test.describe('User Addons', () => {
 
       await addonsPage.clickOnTab(addonsPage.allAddonsTab);
       await addonsPage.selectFromAddonDropdown('Citation Manager');
-      await waitUntilPageReady(page);
       await searchAddonBox(addonsPage.searchInput, addonsPage.addonCardTitle, provider);
       await addonsPage.clickOnButton('Connect');
-      await waitUntilPageReady(page);
 
       const yellowRows = await addonsPage.connectAddonModal.getRowCount('background-warning');
       expect(yellowRows).toBe(2);
@@ -1568,10 +1564,8 @@ test.describe('User Addons', () => {
 
     await addonsPage.clickOnTab(addonsPage.allAddonsTab);
     await addonsPage.selectFromAddonDropdown('Linked Services');
-    await waitUntilPageReady(page);
     await searchAddonBox(addonsPage.searchInput, addonsPage.addonCardTitle, provider);
     await addonsPage.clickOnButton('Connect');
-    await waitUntilPageReady(page);
     await addonsPage.connectAddonModal.verifyProviderConditions(providerName, expectedConditions);
     await addonsPage.connectAddonModal.clickOnButton('Cancel');
   });
