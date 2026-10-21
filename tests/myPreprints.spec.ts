@@ -10,27 +10,17 @@ import {
   PreprintSubmitPage,
 } from '../src/pages/PreprintPage';
 
-/**
- * Port of `tests/test_my_preprints.py` (`TestMyPreprintsPage`, 6 tests). The Python
- * class's own waiting helpers (`wait_until_page_ready`, `wait_for_table_first_row`,
- * `scroll_footer`, `wait_next_clickable`) are dropped: `MyPreprintsPage` waits for the
- * table's own list request instead, and Playwright scrolls and waits for clickability
- * itself. The unused `create_single_preprint` fixture wasn't ported.
- */
 
-// The file the create test uploads - the file chooser takes the content directly.
 const UPLOAD_FILE_NAME = 'selenium_preprint_test.txt';
 
-// Creating three preprints through the API (each one an upload to WaterButler plus a
-// review action) takes most of the default per-test budget on its own, and the create
-// test walks the whole six-step submit form.
+
 const LONG_FLOW_TIMEOUT_MS = 180_000;
 
 const test = base.extend<{
   myPreprintsPage: MyPreprintsPage;
   createPreprints: string[];
 }>({
-  /** Port of `open_my_preprints` - opens My Preprints from the navbar's My OSF menu. */
+
   myPreprintsPage: async ({ page }, use) => {
     await new Navbar(page).clickMyPreprintsLink();
     const myPreprintsPage = await MyPreprintsPage.expectOn(page);
@@ -38,11 +28,7 @@ const test = base.extend<{
     await use(myPreprintsPage);
   },
 
-  /**
-   * Port of `create_preprints` - three post-moderated USER_ONE preprints, created in
-   * this order so the last one is the most recently modified. Like Python, they're
-   * left in place: a submitted preprint can't be deleted through the API.
-   */
+
   createPreprints: async ({ session, fake }, use) => {
     const titles: string[] = [];
     for (const prefix of ['1 OSF Preprint', '2 OSF Preprint', 'ZZZ OSF Preprint']) {
@@ -60,11 +46,7 @@ const test = base.extend<{
   },
 });
 
-/**
- * Port of the create test's `finally` - deletes the supplemental materials project of
- * any preprint created since `since` (an ISO timestamp). The test doesn't add one, so
- * this normally finds nothing; failures are logged, not raised.
- */
+
 async function deleteSupplementalProjects(session: OsfSession, since: string): Promise<void> {
   try {
     const preprints = await osfApi.getPreprintsListForUser(session);
@@ -155,8 +137,7 @@ test.describe('My Preprints Page', () => {
       length: { min: 5, max: 10 },
       casing: 'lower',
     })}`;
-    // Python also picked 'Selenium Pre-moderation' on test1, an environment this
-    // project doesn't define.
+
     const providerName =
       settings.STAGE2 || settings.STAGE4 || settings.TEST2 || settings.TEST4
         ? 'PsyArXiv'

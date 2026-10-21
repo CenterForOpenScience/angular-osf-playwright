@@ -1,7 +1,6 @@
 import { Locator } from '@playwright/test';
 
 import * as settings from '../../config/settings';
-import { waitUntilPageReady } from '../utils';
 import { SearchPage } from './SearchPage';
 
 /**
@@ -21,7 +20,6 @@ export class ProfilePage extends SearchPage {
   /** Port of `goto_short()` - navigates without asserting page structure. */
   async gotoShort(): Promise<this> {
     await this.page.goto(this.url);
-    await waitUntilPageReady(this.page);
     return this;
   }
 
@@ -115,7 +113,7 @@ export class ProfilePage extends SearchPage {
   async clickOnSaveButton(tabName: 'Name' | 'Social' | 'Employment' | 'Education'): Promise<void> {
     void tabName;
     // Save re-routes the SPA to `/settings/profile?tab=N` on success rather than
-    // reloading, so `waitUntilPageReady`'s readyState/spinner checks alone don't
+    // reloading, so readyState/spinner checks alone don't
     // reliably observe it finishing - verified live via `tests/_debug_inspect.spec.ts`
     // that navigating away immediately after the click can race the PATCH and read
     // back stale data. Wait for the PATCH itself instead.

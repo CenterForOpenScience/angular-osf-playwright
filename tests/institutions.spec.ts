@@ -68,8 +68,7 @@ async function checkSearchResultsExist(
   expectedType: RegExp
 ): Promise<void> {
   await institutionPage.searchInput.fill('test');
-  await institutionPage.searchInput.press('Enter');
-  await institutionPage.waitForResultsLoad();
+  await institutionPage.waitForResults(() => institutionPage.searchInput.press('Enter'));
   if (tabLink) {
     await institutionPage.openTab(tabLink);
   }
@@ -93,8 +92,7 @@ async function checkAdditionalFilterShownOnCard(
   }
   const numberOfRecords = await institutionPage.getRecordCountForAdditionalFilters(optionName);
   const resultCountBeforeFilter = await institutionPage.getResultsCount();
-  await option.click();
-  await institutionPage.waitForResultsLoad();
+  await institutionPage.waitForResults(() => option.click());
   await institutionPage.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
   await institutionPage.chevronMenuFirstCard.click();
   const linkOnCard = page
@@ -183,8 +181,7 @@ test.describe('Institution Page Search', { tag: ['@core'] }, () => {
   test.describe('Search Results', { tag: ['@smoke'] }, () => {
     test('search results exist on all tab', async ({ institutionPage }) => {
       await institutionPage.searchInput.fill('test');
-      await institutionPage.searchInput.press('Enter');
-      await institutionPage.waitForResultsLoad();
+      await institutionPage.waitForResults(() => institutionPage.searchInput.press('Enter'));
       await expect(institutionPage.searchResults.first()).toBeVisible();
       expect(await institutionPage.searchResults.count()).toBeGreaterThan(0);
     });
@@ -244,8 +241,7 @@ test.describe('Institution Page Search', { tag: ['@core'] }, () => {
         test.skip(true, 'Record was not found in the list');
       }
       const nameOfRecord = await institutionPage.getRecordName('1');
-      await institutionPage.optionCheckboxByIndex('1').click({ force: true });
-      await institutionPage.waitForResultsLoad();
+      await institutionPage.waitForResults(() => institutionPage.optionCheckboxByIndex('1').click({ force: true }));
       const typeBadges = page.locator('osf-resource-card p[class*="type"]');
       await expect(typeBadges.first()).toBeVisible();
       await expect(
@@ -268,8 +264,7 @@ test.describe('Institution Page Search', { tag: ['@core'] }, () => {
       const nameOfRecord = await institutionPage.getRecordName('1');
       const numberOfRecords = await institutionPage.getRecordCount('1');
       const resultCountBeforeFilter = await institutionPage.getResultsCount();
-      await institutionPage.optionCheckboxByIndex('1').click({ force: true });
-      await institutionPage.waitForResultsLoad();
+      await institutionPage.waitForResults(() => institutionPage.optionCheckboxByIndex('1').click({ force: true }));
       await institutionPage.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
       await institutionPage.chevronMenuFirstCard.click();
       const recordLocator = page.locator('p', { hasText: 'Provider:' }).locator('a').first();
@@ -614,8 +609,7 @@ test.describe('Institution Page Search', { tag: ['@core'] }, () => {
       const nameOfRecord = await institutionPage.getRecordName('1');
       const numberOfRecords = await institutionPage.getRecordCount('1');
       const resultCountBeforeFilter = await institutionPage.getResultsCount();
-      await institutionPage.optionCheckboxByIndex('1').click({ force: true });
-      await institutionPage.waitForResultsLoad();
+      await institutionPage.waitForResults(() => institutionPage.optionCheckboxByIndex('1').click({ force: true }));
       await institutionPage.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
       await institutionPage.chevronMenuFirstCard.click();
       const recordLocator = page.locator('p', { hasText: 'Registration Template' }).first();
@@ -942,8 +936,7 @@ test.describe('Institution Page Search', { tag: ['@core'] }, () => {
         'Associated preprint'
       );
       const resultCountBeforeFilter = await institutionPage.getResultsCount();
-      await additionalOption.click();
-      await institutionPage.waitForResultsLoad();
+      await institutionPage.waitForResults(() => additionalOption.click());
       await institutionPage.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
       const popup = await clickExpectingPopup(page, institutionPage.firstSearchResultTitle);
       await expect(
@@ -1097,8 +1090,7 @@ test.describe('Institution Page Search', { tag: ['@core'] }, () => {
       }
       const nameOfInstitution = await institutionPage.getRecordName('1');
       const numberOfUsers = await institutionPage.getRecordCount('1');
-      await institutionPage.optionByIndex('1').click();
-      await institutionPage.waitForResultsLoad();
+      await institutionPage.waitForResults(() => institutionPage.optionByIndex('1').click());
       const resultCountAfterFilterApplying = await institutionPage.getResultsCount();
       expect(resultCountAfterFilterApplying).toBe(numberOfUsers);
       await institutionPage.expectEveryResultCardToContain(nameOfInstitution);
@@ -1109,8 +1101,7 @@ test.describe('Institution Page Search', { tag: ['@core'] }, () => {
       const resultCountWithoutFilter = await institutionPage.getResultsCount();
       await institutionPage.institutionAffiliationMenu.click();
       await institutionPage.additionalMultiselectDropdown.click();
-      await institutionPage.optionByIndex('2').click();
-      await institutionPage.waitForResultsLoad();
+      await institutionPage.waitForResults(() => institutionPage.optionByIndex('2').click());
       const resultCountAfterFilterApplying = await institutionPage.getResultsCount();
       expect(resultCountAfterFilterApplying).not.toBe(resultCountWithoutFilter);
       await page.locator('span.p-chip-remove-icon').click();

@@ -534,8 +534,8 @@ async function clickTabAndVerifyType(
   expectedTypePattern: string | RegExp
 ): Promise<void> {
   for (let attempt = 0; attempt < 3; attempt += 1) {
+    // The retrying toHaveText below is what waits for the tab's results.
     await tabLink.click();
-    await searchPage.waitForResultsLoad();
     await expect(searchPage.searchResults.first()).toBeVisible();
     try {
       await expect(searchPage.firstCardObjectTypeLabel).toHaveText(expectedTypePattern, {
@@ -545,7 +545,6 @@ async function clickTabAndVerifyType(
     } catch (error) {
       if (attempt === 2) throw error;
       await page.reload();
-      await searchPage.waitForResultsLoad();
     }
   }
 }
@@ -559,24 +558,21 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
   test.describe('Search Results', () => {
     test('search results exist on all tab', async ({ searchPage }) => {
       await searchPage.searchInput.fill('test');
-      await searchPage.searchInput.press('Enter');
-      await searchPage.waitForResultsLoad();
+      await searchPage.waitForResults(() => searchPage.searchInput.press('Enter'));
       await expect(searchPage.searchResults.first()).toBeVisible();
       expect(await searchPage.searchResults.count()).toBeGreaterThan(0);
     });
 
     test('search results exist on projects tab', async ({ page, searchPage }) => {
       await searchPage.searchInput.fill('test');
-      await searchPage.searchInput.press('Enter');
-      await searchPage.waitForResultsLoad();
+      await searchPage.waitForResults(() => searchPage.searchInput.press('Enter'));
       await clickTabAndVerifyType(page, searchPage, searchPage.projectsTabLink, /^\s*Project/);
       expect(await searchPage.searchResults.count()).toBeGreaterThan(0);
     });
 
     test('search results exist on registrations tab', async ({ page, searchPage }) => {
       await searchPage.searchInput.fill('test');
-      await searchPage.searchInput.press('Enter');
-      await searchPage.waitForResultsLoad();
+      await searchPage.waitForResults(() => searchPage.searchInput.press('Enter'));
       await clickTabAndVerifyType(
         page,
         searchPage,
@@ -588,16 +584,14 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
 
     test('search results exist on preprints tab', async ({ page, searchPage }) => {
       await searchPage.searchInput.fill('test');
-      await searchPage.searchInput.press('Enter');
-      await searchPage.waitForResultsLoad();
+      await searchPage.waitForResults(() => searchPage.searchInput.press('Enter'));
       await clickTabAndVerifyType(page, searchPage, searchPage.preprintsTabLink, 'Preprint');
       expect(await searchPage.searchResults.count()).toBeGreaterThan(0);
     });
 
     test('search results exist on files tab', async ({ page, searchPage }) => {
       await searchPage.searchInput.fill('test');
-      await searchPage.searchInput.press('Enter');
-      await searchPage.waitForResultsLoad();
+      await searchPage.waitForResults(() => searchPage.searchInput.press('Enter'));
       await clickTabAndVerifyType(page, searchPage, searchPage.filesTabLink, 'File');
       expect(await searchPage.searchResults.count()).toBeGreaterThan(0);
     });
@@ -634,8 +628,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
       await searchPageShort.resourceTypeMultiselectDropdown.click();
       await searchPageShort.multiselectFilterInput.fill('preprin');
       const nameOfRecord = await searchPageShort.getRecordName('1');
-      await searchPageShort.optionCheckboxByIndex('1').click({ force: true });
-      await searchPageShort.waitForResultsLoad();
+      await searchPageShort.waitForResults(() => searchPageShort.optionCheckboxByIndex('1').click({ force: true }));
       // The unfiltered All tab already shows some Preprint cards, so "a Preprint card is
       // visible" proves nothing - every card's type badge has to match. (No "results <=
       // option count" check here: SHARE's resourceType facet count is currently one
@@ -657,8 +650,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
       const nameOfRecord = await searchPageShort.getRecordName('1');
       const numberOfRecords = await searchPageShort.getRecordCount('1');
       const resultCountBeforeFilter = await searchPageShort.getResultsCount();
-      await searchPageShort.optionCheckboxByIndex('1').click({ force: true });
-      await searchPageShort.waitForResultsLoad();
+      await searchPageShort.waitForResults(() => searchPageShort.optionCheckboxByIndex('1').click({ force: true }));
       await searchPageShort.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
       await searchPageShort.chevronMenuFirstCard.click();
       const recordLocator = page.locator('p', { hasText: 'Provider:' }).locator('a').first();
@@ -846,8 +838,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
         'Preregistered analysis plan'
       );
       const resultCountBeforeFilter = await searchPageShort.getResultsCount();
-      await option.click();
-      await searchPageShort.waitForResultsLoad();
+      await searchPageShort.waitForResults(() => option.click());
       await searchPageShort.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
       await searchPageShort.chevronMenuFirstCard.click();
       const elementOnCard = page
@@ -867,8 +858,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
         'Preregistered study design'
       );
       const resultCountBeforeFilter = await searchPageShort.getResultsCount();
-      await option.click();
-      await searchPageShort.waitForResultsLoad();
+      await searchPageShort.waitForResults(() => option.click());
       await searchPageShort.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
       await searchPageShort.chevronMenuFirstCard.click();
       const elementOnCard = page
@@ -1013,8 +1003,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
       const nameOfRecord = await searchPageShort.getRecordName('1');
       const numberOfRecords = await searchPageShort.getRecordCount('1');
       const resultCountBeforeFilter = await searchPageShort.getResultsCount();
-      await searchPageShort.optionCheckboxByIndex('1').click({ force: true });
-      await searchPageShort.waitForResultsLoad();
+      await searchPageShort.waitForResults(() => searchPageShort.optionCheckboxByIndex('1').click({ force: true }));
       await searchPageShort.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
       await searchPageShort.chevronMenuFirstCard.click();
       const recordLocator = page.locator('p', { hasText: 'Registration Template' }).first();
@@ -1210,8 +1199,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
       await searchPageShort.multiselectFilterInput.fill('Book');
       const numberOfRecords = await searchPageShort.getRecordCount('1');
       const resultCountBeforeFilter = await searchPageShort.getResultsCount();
-      await searchPageShort.optionCheckboxByIndex('1').click({ force: true });
-      await searchPageShort.waitForResultsLoad();
+      await searchPageShort.waitForResults(() => searchPageShort.optionCheckboxByIndex('1').click({ force: true }));
       await searchPageShort.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
       await searchPageShort.chevronMenuFirstCard.click();
       const resourceTypeInCard = page.locator('p', { hasText: 'Resource type:' }).first();
@@ -1350,8 +1338,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
         'Associated preprint'
       );
       const resultCountBeforeFilter = await searchPageShort.getResultsCount();
-      await additionalOption.click();
-      await searchPageShort.waitForResultsLoad();
+      await searchPageShort.waitForResults(() => additionalOption.click());
       await searchPageShort.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
       const popup = await clickExpectingPopup(page, searchPageShort.firstSearchResultTitle);
       const locator = popup.locator('osf-overview-supplements p', { hasText: 'Preprints' });
@@ -1371,8 +1358,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
       await searchPageShort.multiselectFilterInput.fill('Book');
       const numberOfRecords = await searchPageShort.getRecordCount('1');
       const resultCountBeforeFilter = await searchPageShort.getResultsCount();
-      await searchPageShort.optionCheckboxByIndex('1').click({ force: true });
-      await searchPageShort.waitForResultsLoad();
+      await searchPageShort.waitForResults(() => searchPageShort.optionCheckboxByIndex('1').click({ force: true }));
       await searchPageShort.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
       await searchPageShort.chevronMenuFirstCard.click();
       const resourceTypeInCard = page.locator('p', { hasText: 'Resource type:' }).first();
@@ -1515,8 +1501,7 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
       const nameOfInstitution = await searchPageShort.getRecordName('1');
       const numberOfUsers = await searchPageShort.getRecordCount('1');
       const resultCountBeforeFilter = await searchPageShort.getResultsCount();
-      await searchPageShort.optionByIndex('1').click();
-      await searchPageShort.waitForResultsLoad();
+      await searchPageShort.waitForResults(() => searchPageShort.optionByIndex('1').click());
       await searchPageShort.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfUsers);
       await searchPageShort.expectEveryResultCardToContain(nameOfInstitution);
     });
@@ -1527,12 +1512,10 @@ test.describe('Search Page', { tag: ['@smoke', '@core'] }, () => {
       const resultCountWithoutFilter = await searchPageShort.getResultsCount();
       await searchPageShort.institutionAffiliationMenu.click();
       await searchPageShort.additionalMultiselectDropdown.click();
-      await searchPageShort.optionByIndex('1').click();
-      await searchPageShort.waitForResultsLoad();
+      await searchPageShort.waitForResults(() => searchPageShort.optionByIndex('1').click());
       const resultCountAfterFilterApplying = await searchPageShort.getResultsCount();
       expect(resultCountAfterFilterApplying).not.toBe(resultCountWithoutFilter);
-      await page.locator('span.p-chip-remove-icon').click();
-      await searchPageShort.waitForResultsLoad();
+      await searchPageShort.waitForResults(() => page.locator('span.p-chip-remove-icon').click());
       const resultCountAfterRemovingFilter = await searchPageShort.getResultsCount();
       expect(resultCountAfterRemovingFilter).toBe(resultCountWithoutFilter);
     });

@@ -4,8 +4,6 @@ import * as settings from '../../config/settings';
 import {
   present,
   clickExpectingPopup,
-  waitUntilPageReady,
-  hereThenGone,
   parseResultCount,
 } from '../utils';
 import { BasePage } from './BasePage';
@@ -21,7 +19,8 @@ import { BasePage } from './BasePage';
  * Per `PLAYWRIGHT_MIGRATION_RULES.md`, `wait_until_page_ready` / `here_then_gone` /
  * `scroll_to` calls from the Python source are dropped throughout - Playwright's
  * locator auto-waiting and auto-retrying `expect()` already cover the same
- * synchronization points, and `.click()` auto-scrolls.
+ * synchronization points, and `.click()` auto-scrolls. Where a results refresh has
+ * to finish before reading counts, `waitForResults()` waits for it explicitly.
  */
 export class SearchPage extends BasePage {
   get url(): string {
@@ -29,14 +28,17 @@ export class SearchPage extends BasePage {
   }
 
 
-  async goto(): Promise<this> {
-    await super.goto();
-    await waitUntilPageReady(this.page);
-    return this;
-  }
-
-  async waitForResultsLoad(): Promise<void> {
-    await hereThenGone(this.loadingIndicator);
+  /**
+   * Runs `action` (a filter click, a search, ...) and waits for the results it
+   * triggers: the `index-card-search` response, then no loading spinner. Verified
+   * live that the result count only updates after that response arrives, while the
+   * spinner is still showing - waiting for the response alone reads the old count.
+   */
+  async waitForResults(action: () => Promise<unknown>): Promise<void> {
+    const response = this.page.waitForResponse((res) => res.url().includes('index-card-search'));
+    await action();
+    await response;
+    await expect(this.loadingIndicator.filter({ visible: true })).toHaveCount(0);
   }
 
 
@@ -348,8 +350,7 @@ export class SearchPage extends BasePage {
     const nameOfRecord = await this.getRecordName(recordIndex);
     const numberOfUsers = await this.getRecordCount(recordIndex);
     const resultCountBeforeFilter = await this.getResultsCount();
-    await this.optionCheckboxByIndex(recordIndex).click({ force: true });
-    await this.waitForResultsLoad();
+    await this.waitForResults(() => this.optionCheckboxByIndex(recordIndex).click({ force: true }));
     await this.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfUsers);
     await this.expectEveryResultCardToListCreator(nameOfRecord);
   }
@@ -363,8 +364,7 @@ export class SearchPage extends BasePage {
     const nameOfRecord = await this.getRecordName('1');
     const numberOfRecords = await this.getRecordCount('1');
     const resultCountBeforeFilter = await this.getResultsCount();
-    await this.optionCheckboxByIndex('1').click({ force: true });
-    await this.waitForResultsLoad();
+    await this.waitForResults(() => this.optionCheckboxByIndex('1').click({ force: true }));
     await this.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
     const recordLocator = this.page.locator('p', { hasText: dateCreatedRegistered }).first();
     await expect(recordLocator).toContainText(nameOfRecord);
@@ -381,8 +381,7 @@ export class SearchPage extends BasePage {
     const nameOfRecord = await this.getRecordName(recordIndex);
     const numberOfRecords = await this.getRecordCount(recordIndex);
     const resultCountBeforeFilter = await this.getResultsCount();
-    await this.optionCheckboxByIndex(recordIndex).click({ force: true });
-    await this.waitForResultsLoad();
+    await this.waitForResults(() => this.optionCheckboxByIndex(recordIndex).click({ force: true }));
     await this.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
     const popup = await clickExpectingPopup(this.page, this.firstSearchResultTitle);
  
@@ -403,8 +402,7 @@ export class SearchPage extends BasePage {
     const nameOfRecord = await this.getRecordName('1');
     const numberOfRecords = await this.getRecordCount('1');
     const resultCountBeforeFilter = await this.getResultsCount();
-    await this.optionCheckboxByIndex('1').click({ force: true });
-    await this.waitForResultsLoad();
+    await this.waitForResults(() => this.optionCheckboxByIndex('1').click({ force: true }));
     await this.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
     await this.chevronMenuFirstCard.click();
     const recordLocator = this.page.locator('p', { hasText: 'License:' }).locator('a').first();
@@ -423,8 +421,7 @@ export class SearchPage extends BasePage {
     }
     const numberOfRecords = await this.getRecordCount(recordIndex);
     const resultCountBeforeFilter = await this.getResultsCount();
-    await this.optionCheckboxByIndex(recordIndex).click({ force: true });
-    await this.waitForResultsLoad();
+    await this.waitForResults(() => this.optionCheckboxByIndex(recordIndex).click({ force: true }));
     await this.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
   }
 
@@ -437,8 +434,7 @@ export class SearchPage extends BasePage {
     const nameOfRecord = await this.getRecordName(indexOfRecordInList);
     const numberOfRecords = await this.getRecordCount(indexOfRecordInList);
     const resultCountBeforeFilter = await this.getResultsCount();
-    await this.optionCheckboxByIndex(indexOfRecordInList).click({ force: true });
-    await this.waitForResultsLoad();
+    await this.waitForResults(() => this.optionCheckboxByIndex(indexOfRecordInList).click({ force: true }));
     await this.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
     await this.chevronMenuFirstCard.click();
     const recordLocator = this.page.locator('p', { hasText: 'Provider:' }).locator('a').first();
@@ -452,8 +448,7 @@ export class SearchPage extends BasePage {
       'Supplemental materials'
     );
     const resultCountBeforeFilter = await this.getResultsCount();
-    await supplementalMaterialsOption.click();
-    await this.waitForResultsLoad();
+    await this.waitForResults(() => supplementalMaterialsOption.click());
     await this.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
     const popup = await clickExpectingPopup(this.page, this.firstSearchResultTitle);
     const supplementalMaterialsLocator = popup
@@ -469,8 +464,7 @@ export class SearchPage extends BasePage {
     const dataOption = this.page.locator('input#checkbox-hasDataResource');
     const numberOfRecords = await this.getRecordCountForAdditionalFilters('Data');
     const resultCountBeforeFilter = await this.getResultsCount();
-    await dataOption.click();
-    await this.waitForResultsLoad();
+    await this.waitForResults(() => dataOption.click());
     await this.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
     const popup = await clickExpectingPopup(this.page, this.firstSearchResultTitle);
     const publicDataLocator = popup.locator(publicDataSelector).first();
@@ -497,9 +491,8 @@ export class SearchPage extends BasePage {
     const filteredSearch = this.page.waitForRequest(
       (req) => req.url().includes('index-card-search') && funderParam(req.url()) !== undefined
     );
-    await this.optionCheckboxByIndex('1').click({ force: true });
+    await this.waitForResults(() => this.optionCheckboxByIndex('1').click({ force: true }));
     const funderIri = funderParam((await filteredSearch).url());
-    await this.waitForResultsLoad();
     await this.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
     await this.chevronMenuFirstCard.click();
     const funderLink = this.page
@@ -519,8 +512,7 @@ export class SearchPage extends BasePage {
     const nameOfRecord = await this.getRecordName('1');
     const numberOfRecords = await this.getRecordCount('1');
     const resultCountBeforeFilter = await this.getResultsCount();
-    await this.optionCheckboxByIndex('1').click({ force: true });
-    await this.waitForResultsLoad();
+    await this.waitForResults(() => this.optionCheckboxByIndex('1').click({ force: true }));
     await this.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
     await this.chevronMenuFirstCard.click();
     const recordLocator = this.page.locator('p', { hasText: 'Collection:' }).locator('a').first();
@@ -550,8 +542,7 @@ export class SearchPage extends BasePage {
     }
     const numberOfRecords = await this.pollForRecordCount(option);
     const resultCountBeforeFilter = await this.getResultsCount();
-    await option.locator('input[type="checkbox"]').click({ force: true });
-    await this.waitForResultsLoad();
+    await this.waitForResults(() => option.locator('input[type="checkbox"]').click({ force: true }));
     await this.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
     await expect(
       this.page.locator('.p-chip-label', { hasText: `Resource type: ${resourceType}` })
@@ -579,8 +570,7 @@ export class SearchPage extends BasePage {
     }
     const numberOfRecords = await this.getRecordCountForAdditionalFilters(additionalOptionName);
     const resultCountBeforeFilter = await this.getResultsCount();
-    await additionalOption.click();
-    await this.waitForResultsLoad();
+    await this.waitForResults(() => additionalOption.click());
     await this.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
     const popup = await clickExpectingPopup(this.page, this.firstSearchResultTitle);
     const selectedOptionIcon = popup.locator(iconSelector);
@@ -596,8 +586,7 @@ export class SearchPage extends BasePage {
     const nameOfRecord = await this.getRecordName('1');
     const numberOfRecords = await this.getRecordCount('1');
     const resultCountBeforeFilter = await this.getResultsCount();
-    await this.optionCheckboxByIndex('1').click({ force: true });
-    await this.waitForResultsLoad();
+    await this.waitForResults(() => this.optionCheckboxByIndex('1').click({ force: true }));
     await this.expectFilterNarrowedResults(resultCountBeforeFilter, numberOfRecords);
     // This shows up as the applied-filter chip, not as a field on the result card
     // itself (unlike Provider/License/etc., which do render on the card).
@@ -608,17 +597,14 @@ export class SearchPage extends BasePage {
   }
 
   async checkClearingOfAppliedFilters(): Promise<void> {
-
-    await this.waitForResultsLoad();
+    await expect(this.searchResults.first()).toBeVisible();
     const resultCountWithoutFilter = await this.getResultsCount();
     await this.dateCreatedMenu.click();
     await this.dateCreatedMultiselectDropdown.click();
     const numberOfRecords = await this.getRecordCount('1');
-    await this.optionCheckboxByIndex('1').click({ force: true });
-    await this.waitForResultsLoad();
+    await this.waitForResults(() => this.optionCheckboxByIndex('1').click({ force: true }));
     await this.expectFilterNarrowedResults(resultCountWithoutFilter, numberOfRecords);
-    await this.page.locator('span.p-chip-remove-icon').click();
-    await this.waitForResultsLoad();
+    await this.waitForResults(() => this.page.locator('span.p-chip-remove-icon').click());
 
     await expect
       .poll(() => this.getResultsCount(), { timeout: settings.LONG_TIMEOUT_MS })
