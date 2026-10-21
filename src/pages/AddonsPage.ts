@@ -68,10 +68,24 @@ export class AddonsPage extends GuidBasePage {
         await this.page.getByRole('tab', { name: (tabName), exact: true }).click()
     }
 
+    // async selectFromAddonDropdown(option: string): Promise<void> {
+    //     console.log(option);
+    //     await this.addonsDropdownTrigger.click();
+    //     await this.page.getByRole('option', { name: 'settings.addons.categories.'+(option)}).click();
+    // }
+
     async selectFromAddonDropdown(option: string): Promise<void> {
         await this.addonsDropdownTrigger.click();
-        await this.page.getByRole('option', { name: 'settings.addons.categories.' + (option) }).click();
+        const normalizedOption = option.trim().replace(/\s+/g, ' ');
+        await this.page.locator('p-selectitem')
+            .filter({
+                hasText: new RegExp(
+                    `^\\s*${normalizedOption.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`
+                )
+            })
+            .click();
     }
+
 
     /**
    * The add-on card containing a heading with the given name (case-insensitive).
@@ -87,17 +101,44 @@ export class AddonsPage extends GuidBasePage {
     }
 
     /** Logo for the card whose heading matches provider . */
+    /** Card names with whitespace removed and lowercased ("Google Drive" -> "googledrive"). */
+    private static normalize(text: string): string {
+        return text.replace(/\s+/g, '').toLowerCase();
+    }
+
+    async addonCardNames(): Promise<string[]> {
+        return (await this.addonCardTitle.allInnerTexts()).map(AddonsPage.normalize);
+    }
+
+    /** Retries until the visible cards are exactly the expected add-ons (proves the filter applied). */
+    async expectCardsToBe(expectedNames: string[]): Promise<void> {
+        const expected = expectedNames.map(AddonsPage.normalize).sort();
+        await expect
+            .poll(async () => (await this.addonCardNames()).sort(), {
+                message: 'Add-on list does not match the selected filter',
+            })
+            .toEqual(expected);
+    }
+
+    /** Logo for the card whose title matches provider. */
     async addonProviderLogo(provider: string): Promise<Locator> {
-        const normalize = (text: string) => text.replace(/\s+/g, '').toLowerCase();
+        const target = AddonsPage.normalize(provider);
 
-        // Wait for the cards to render before reading their titles
-        await expect(this.addonCardTitle.first()).toBeVisible();
+        // Retries: the list may still be switching after a filter change
+        let titles: string[] = [];
+        await expect
+            .poll(async () => (titles = await this.addonCardNames()), {
+                message: `No add-on card titled "${provider}"`,
+            })
+            .toContain(target);
 
-        const titles = (await this.addonCardTitle.allInnerTexts()).map(normalize);
-        const index = titles.indexOf(normalize(provider));
-        expect(index, `No add-on card titled "${provider}". Found: ${titles.join(', ')}`).toBeGreaterThan(-1);
+        // Logos are paired with titles by position, so the counts must match
+        await expect(
+            this.addonCardLogo,
+            `Expected one logo per card (${titles.length} cards). A card is missing its logo, so logos can't be matched by position`,
+        ).toHaveCount(titles.length);
 
-        return this.addonCardLogo.nth(index);
+        return this.addonCardLogo.nth(titles.indexOf(target));
     }
 
     async getAddonProviderLogo(provider: string): Promise<string | null> {
