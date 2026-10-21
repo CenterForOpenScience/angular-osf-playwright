@@ -6,58 +6,41 @@ import { request } from '@playwright/test';
 
 
 const test = base.extend<{
-  addonsPage: AddonsPage;
-  defaultAddonsProject: osfApi.OsfProject;
+    addonsPage: AddonsPage;
+    defaultAddonsProject: osfApi.OsfProject;
 }>({
-  addonsPage: async ({ page,  defaultAddonsProject, mustBeLoggedIn }, use) => {
-    void mustBeLoggedIn; // ensure login fixture resolves before this runs; 
+    addonsPage: async ({ page, defaultAddonsProject, mustBeLoggedIn }, use) => {
+        void mustBeLoggedIn; // ensure login fixture resolves before this runs; 
 
-    const addonsPage = new AddonsPage(
-      page,
-      false,
-      defaultAddonsProject.id,
-      settings.OSF_HOME,
-    );
-    await addonsPage.gotoGuid();
-    await use(addonsPage);
-  },
+        const addonsPage = new AddonsPage(
+            page,
+            false,
+            defaultAddonsProject.id,
+            settings.OSF_HOME,
+        );
+        await addonsPage.gotoGuid();
+        await use(addonsPage);
+    },
 
 });
 
-/** Normalise whatever the osfApi helper returns into lowercase addon names. */
-const toAddonNames = (result: unknown): string[] => {
-  const items = Array.isArray(result) ? result : (result as { data?: unknown[] })?.data;
-  if (!Array.isArray(items)) {
-    throw new Error(`Unexpected osfApi response: ${JSON.stringify(result)}`);
-  }
-  return items.map((item: any) =>
-    String(
-      typeof item === 'string'
-        ? item
-        : item.attributes?.display_name ?? item.display_name ?? item.name,
-    )
-      .trim()
-      .toLowerCase(),
-  );
-};
-
 async function fetchAddonNames(url: string): Promise<string[]> {
-  const gv = await request.newContext({
-    baseURL: settings.ADDON_DOMAIN,
-    extraHTTPHeaders: {
-      Accept: 'application/vnd.api+json',
-      Authorization: `Bearer ${settings.ADDON_API_TOKEN}`,
-    },
-  });
-  try {
-    const res = await gv.get(url);
-    console.log(`GET ${res.url()} -> ${res.status()}`);
-    if (!res.ok()) throw new Error(`${res.status()} ${await res.text()}`);
-    const body = await res.json();
-    return body.data.map((a: any) => a.attributes.display_name.trim().toLowerCase());
-  } finally {
-    await gv.dispose();
-  }
+    const gv = await request.newContext({
+        baseURL: settings.ADDON_DOMAIN,
+        extraHTTPHeaders: {
+            Accept: 'application/vnd.api+json',
+            Authorization: `Bearer ${settings.ADDON_API_TOKEN}`,
+        },
+    });
+    try {
+        const res = await gv.get(url);
+        //console.log(`GET ${res.url()} -> ${res.status()}`);
+        if (!res.ok()) throw new Error(`${res.status()} ${await res.text()}`);
+        const body = await res.json();
+        return body.data.map((a: any) => a.attributes.display_name.trim().toLowerCase());
+    } finally {
+        await gv.dispose();
+    }
 }
 
 // Example parameterized test replacing python's provider fixture
@@ -69,33 +52,42 @@ const addonTypes = ['additionalService', 'citationManager', 'linkedService']
 export type AddonType = (typeof addonTypes)[number];
 // Providers whose icon file name differs from the provider key
 const logoFileOverrides: Record<string, string> = {
-  googledrive: 'google_drive.svg',
+    googledrive: 'google_drive.svg',
+};
+/** Matches the exact file name at the end of the URL path, so box.svg won't match dropbox.svg. */
+const logoFilePattern = (fileName: string) =>
+    new RegExp(`(?:^|/)${escapeRegex(fileName)}(?:[?#]|$)`);
+
+const addonTypeConfig: Record<string, { label: string; url: string }> = {
+    additionalService: {
+        label: 'Additional Storage',
+        url: '/v1/external-storage-services',
+    },
+    citationManager: {                       // ← use the exact key from your addonTypes
+        label: 'Citation Manager',
+        url: '/v1/external-citation-services',
+    },
+    linkedService: {                         // ← use the exact key from your addonTypes
+        label: 'Linked Services',
+        url: '/v1/external-link-services',
+    },
 };
 
-test.describe('Project addons page', { tag: '@core' }, () => {
-  test.beforeEach(() => {
-      test.skip(settings.PRODUCTION, 'Test should not run on production');
+const logoTests = [
+    ...storageAddons.map((provider) => ({ provider, type: addonTypeConfig.additionalService })),
+    ...citationAddons.map((provider) => ({ provider, type: addonTypeConfig.citationManager })),
+];
+
+test.describe('Project addons page', { tag: ['@smoke', '@core'] }, () => {
+    test.beforeEach(async ({ throttleOnProd }) => {
+        void throttleOnProd;
     });
-  
     for (const addonType of addonTypes) {
         test(`addon dropdown shows correct addons: ${addonType}`, async ({
             addonsPage,
         }) => {
             // Keyed by your project's addonTypes values
-            const addonTypeConfig: Record<string, { label: string; url: string }> = {
-                additionalService: {
-                    label: 'Additional Storage',
-                    url: '/v1/external-storage-services',
-                },
-                citationManager: {                       // ← use the exact key from your addonTypes
-                    label: 'Citation Manager',
-                    url: '/v1/external-citation-services',
-                },
-                linkedService: {                         // ← use the exact key from your addonTypes
-                    label: 'Linked Services',
-                    url: '/v1/external-link-services',
-                },
-            };
+
             const config = addonTypeConfig[addonType];
             if (!config) {
                 throw new Error(`No config for addon type "${addonType}". Known: ${Object.keys(addonTypeConfig).join(', ')}`);
@@ -106,7 +98,7 @@ test.describe('Project addons page', { tag: '@core' }, () => {
             await addonsPage.clickOnTab('All Add-ons');
 
             // Select Addon type from dropdown
-            await addonsPage.selectFromAddonDropdown(addonType);
+            await addonsPage.selectFromAddonDropdown(config.label);
 
             // Actual results list
             const addonTitles = addonsPage.addonCardTitle;
@@ -120,24 +112,27 @@ test.describe('Project addons page', { tag: '@core' }, () => {
             expect(actualList).toEqual(expectedList);
         });
     }
- 
-  // Equivalent of @pytest.mark.parametrize('provider', testable_addons + citation_addons)
-    for (const provider of [...storageAddons, ...citationAddons]) {
+
+    // Equivalent of @pytest.mark.parametrize('provider', testable_addons + citation_addons)
+    for (const { provider, type } of logoTests) {
         test(`addon logo is correct: ${provider}`, async ({ addonsPage }) => {
+            const expectedNames = await fetchAddonNames(type.url);
             await addonsPage.clickOnTab('All Add-ons');
 
             if (storageAddons.includes(provider)) {
-                await addonsPage.selectFromAddonDropdown('additionalService');
+                await addonsPage.selectFromAddonDropdown('Additional Storage');
             } else if (citationAddons.includes(provider)) {
-                await addonsPage.selectFromAddonDropdown('citationManager');
+                await addonsPage.selectFromAddonDropdown('Citation Manager');
             }
 
-            const expectedLogo = logoFileOverrides[provider] ?? `${provider}.svg`;
+            // The filter actually applied: only this type's add-ons are listed
+            await addonsPage.expectCardsToBe(expectedNames);
 
+            const fileName = logoFileOverrides[provider] ?? `${provider}.svg`;
             await expect(
                 await addonsPage.addonProviderLogo(provider),
-                `Expected ${expectedLogo} in src for ${provider}`,
-            ).toHaveAttribute('src', new RegExp(escapeRegex(expectedLogo)));
+                `Expected ${fileName} as the logo for ${provider}`,
+            ).toHaveAttribute('src', logoFilePattern(fileName));
         });
     }
 });
