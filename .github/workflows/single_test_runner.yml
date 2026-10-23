@@ -36,6 +36,7 @@ on:
           - search.spec.ts
           - user.spec.ts
           - projectFiles.spec.ts
+          - projectAddons.spec.ts
       browser:
         description: 'Browser'
         required: true

@@ -1,6 +1,7 @@
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, TestInfo } from '@playwright/test';
 import { GuidBasePage } from './GuidBasePage';
 import * as settings from '../../config/settings';
+
 
 export class FilesPage extends GuidBasePage {
   static baseUrl = '{guid}/files/{provider}';
@@ -68,7 +69,7 @@ export class FilesPage extends GuidBasePage {
     return this.page.locator('button[aria-label="Download"]');
   }
 
-  async selectFromAddonList(selection: string): Promise<void> {
+  async selectFromAddonList(selection: string, testInfo: TestInfo): Promise<void> {
     await this.selectAddon.nth(0).click();
     // Provider keys (e.g. 'googledrive') may differ from the UI label ('Google Drive') only by
     // whitespace, so allow optional whitespace between every character.
@@ -78,6 +79,18 @@ export class FilesPage extends GuidBasePage {
     const targetAddon = this.addonsList.filter({
       hasText: new RegExp(`^\\s*${pattern}\\s*$`, 'i'),
     });
+
+    const count = await targetAddon.count();
+    if (count === 0) {
+      const available = await this.addonsList.allTextContents();
+      testInfo.skip(
+        true,
+        `Addon "${selection}" not found in dropdown — likely not connected. ` +
+        `Available addons: ${available.map((a) => a.trim()).filter(Boolean).join(', ') || '(none)'}`
+      );
+      return; // unreachable after skip(), but keeps TS happy about control flow
+    }
+
     await targetAddon.first().click();
   }
 

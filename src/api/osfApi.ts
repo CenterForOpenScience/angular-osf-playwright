@@ -406,6 +406,7 @@ export async function getUserPatData(
  * dropped here since it truly does nothing.
  */
 
+
 async function listAddonDisplayNames(path: string): Promise<string[]> {
   const addonSession = await createAddonSession();
   try {
@@ -416,7 +417,8 @@ async function listAddonDisplayNames(path: string): Promise<string[]> {
   }
 }
 
-export function getExternalStorageAddons(): Promise<string[]> {
+/** Function to get all the storage addons configured for the environment. */
+export async function getExternalStorageAddons(_session?: unknown): Promise<string[]> {
   return listAddonDisplayNames('/v1/external-storage-services');
 }
 

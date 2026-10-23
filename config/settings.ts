@@ -91,6 +91,7 @@ export const STAGE2 = DOMAIN === 'stage2';
 export const STAGE3 = DOMAIN === 'stage3';
 export const STAGE4 = DOMAIN === 'stage4';
 export const TEST = DOMAIN === 'test';
+export const TEST1 = DOMAIN === 'test1';
 export const TEST2 = DOMAIN === 'test2';
 export const TEST3 = DOMAIN === 'test3';
 export const TEST4 = DOMAIN === 'test4';
