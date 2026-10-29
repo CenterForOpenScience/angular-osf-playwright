@@ -16,6 +16,10 @@ npx playwright install
 cp .env.example .env   # then fill in credentials
 ```
 
+Set `COS_QA_TOKEN` (in `.env` locally, as a repo secret in CI) to send it as an
+`X-COS-QA-Token` header on every request to OSF hosts, so the backend can exempt test
+traffic from API throttling (429s). Without it, no header is sent.
+
 ## Running tests
 
 Environment is selected via `TEST_ENV` (mirrors the old `settings.DOMAIN`), browser
@@ -107,6 +111,7 @@ tests/
   navbar.spec.ts        # port of tests/test_navbar.py
   registrationSidebar.spec.ts  # port of tests/test_registration_sidebar.py
   registrationMetadata.spec.ts # port of tests/test_registration_metadata.py
+  registrationUserPermissions.spec.ts # port of tests/test_registration_user_permissions.py
   institutions.spec.ts  # port of tests/test_institutions.py
   preprints.spec.ts     # port of tests/test_preprints.py
   myPreprints.spec.ts   # port of tests/test_my_preprints.py
@@ -135,10 +140,10 @@ tick it in **both** files.
 | 13 | My registrations | `tests/test_my_registrations.py` | — | [ ] Not migrated |
 | 14 | My preprints | `tests/test_my_preprints.py` | `tests/myPreprints.spec.ts` | [x] Migrated |
 | 15 | Registration moderation | `tests/test_registration_moderation.py` | — | [ ] Not migrated |
-| 16 | Registration user permissions | `tests/test_registration_user_permissions.py` | — | [ ] Not migrated |
+| 16 | Registration user permissions | `tests/test_registration_user_permissions.py` | `tests/registrationUserPermissions.spec.ts` | [x] Migrated |
 | 17 | Registries | `tests/test_registries.py` | — | [ ] Not migrated |
 
-Progress: **10 / 17** sections migrated.
+Progress: **11 / 17** sections migrated.
 
 ## Notable differences from the Python suite
 
@@ -248,6 +253,42 @@ Progress: **10 / 17** sections migrated.
     Funder Name dropdown itself searches ROR (`api.ror.org`), not SHARE.
   - Subjects/tags/affiliations save as you toggle them, so the tests wait for that save
     request before reloading instead of reloading straight away.
+- **Registration user permissions**: ports all of `test_registration_user_permissions.py`
+  - 63 tests, the same count pytest collects. Each Python class is a `describe`; classes
+    whose tests log in as different users get a nested `describe` per user, so the login
+    in its `beforeEach` runs before the page fixture opens the page. The per-user tests
+    stay separate tests that call one shared check helper. The write-user metadata edit
+    tests reuse the Registration metadata section's flows, including generated award
+    values instead of `get_funder_information` (see that entry). `generateAwardInformation`
+    and the save wait (`waitForApiWrite`) moved from `registrationMetadata.spec.ts` to
+    `src/utils`, so both specs share them. Changes, verified live on uat1:
+  - The contributors filter options' `aria-label`s are untranslated i18n keys
+    (`project.contributors.permissions.read`), and the filter comboboxes' names follow
+    the picked value. `RegistrationContributorsPage`'s filter helpers now use the two
+    filter `p-select` hosts and match options by exact text. Before, they matched a
+    substring: `'Read'` picked "Read + Write", which is listed first. This also affects
+    `registrationSidebar.spec.ts`, which uses the same helpers.
+  - The "non editable functions" tests checked each `p-checkbox`'s `data-p-disabled`
+    for truthiness. That attribute is the string `"false"` on enabled checkboxes too, so
+    the check always passed. The tests now check `toBeDisabled()` on all three
+    Bibliographic Contributor checkboxes, and that no row has a permission combobox
+    (Python's "exactly 2 `p-select-dropdown`s").
+  - Zero-count checks (Edit buttons, Add Contributor, tag input, subject Remove) first
+    wait for the page's data to render, so they can't pass on a half-loaded page.
+  - Without edit rights, tags render as read-only `p-tag`s, not the removable
+    `p-chip[aria-label]`s editors get, so `write user edit tags` waits for the tag's text.
+  - `*_sort_name_z_to_a` asserted *ascending* order after picking Z-A. It only passed
+    because Python read the list before the re-sort rendered. It now asserts descending.
+    Each sort test picks the opposite option first: the list loads sorted A-Z, and
+    re-picking the current option sends no request. It then waits for the files request
+    with the matching `sort` param, and polls the rows. The swapped
+    "descending"/"ascending" date test names are kept as in Python.
+  - Downloads (file menu, detail page, Download As Zip) are checked through Playwright's
+    download event and `suggestedFilename()` (the zip is
+    `<guid>-osfstorage-Archive of OSF Storage-archive.zip`). Python checked
+    `~/Downloads` / BrowserStack instead, same as the Preprints precedent.
+  - The Resource language is picked by scrolling the list to `Achinese`, since the
+    select's filter box is broken (see Registration metadata).
 - **Institutions**: ports all of `test_institutions.py` - 210 tests, the same count
   pytest collects (121 plus one landing-page test per institution; 89 on `test`). An institution's page
   (`/institutions/<id>`) renders the same `osf-search-results-container` component as

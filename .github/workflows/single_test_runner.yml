@@ -33,6 +33,7 @@ on:
           - profile.spec.ts
           - registrationMetadata.spec.ts
           - registrationSidebar.spec.ts
+          - registrationUserPermissions.spec.ts
           - search.spec.ts
           - user.spec.ts
           - projectFiles.spec.ts
@@ -96,6 +97,7 @@ env:
   WRITE_USER_PASSWORD: ${{ secrets.WRITE_USER_PASSWORD }}
   READ_USER: ${{ secrets.READ_USER }}
   READ_USER_PASSWORD: ${{ secrets.READ_USER_PASSWORD }}
+  COS_QA_TOKEN: ${{ secrets.COS_QA_TOKEN }}
 
 jobs:
   # Playwright's own browser matrix (chromium/firefox/edge/webkit) replaces the Python

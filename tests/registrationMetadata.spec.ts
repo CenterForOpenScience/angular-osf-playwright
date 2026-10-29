@@ -1,10 +1,10 @@
 import { Page } from '@playwright/test';
-import { Faker } from '@faker-js/faker';
 
 import * as settings from '../config/settings';
 import { test as base, expect } from '../src/fixtures';
 import * as osfApi from '../src/api/osfApi';
 import { RegistrationMetadataPage, registrationUrl } from '../src/pages/RegistrationPage';
+import { generateAwardInformation, waitForApiWrite } from '../src/utils';
 
 
 const TITLE = 'Selenium Registration for Metadata tests';
@@ -30,28 +30,6 @@ const test = base.extend<MetadataFixtures>({
   },
 });
 
-
-function generateAwardInformation(fake: Faker): {
-  awardTitle: string;
-  awardUri: string;
-  awardNumber: string;
-} {
-  const id = fake.string.alphanumeric(8);
-  return {
-    awardTitle: `Selenium award ${id}`,
-    awardUri: `https://example.org/awards/${id}`,
-    awardNumber: `AWD-${id}`,
-  };
-}
-
-async function waitForSave(page: Page, action: () => Promise<void>): Promise<void> {
-  await Promise.all([
-    page.waitForResponse(
-      (response) => response.request().method() !== 'GET' && response.url().includes('/v2/')
-    ),
-    action(),
-  ]);
-}
 
 async function reloadMetadataPage(metadataPage: RegistrationMetadataPage, page: Page): Promise<void> {
   await page.reload();
@@ -216,7 +194,7 @@ test.describe('Registration Metadata', { tag: '@core' }, () => {
 
     await registrationMetadataPage.clickOnEdit('Affiliated Institutions');
     await registrationMetadataPage.editAffiliationsModal.clickOnCheckbox(institutionId);
-    await waitForSave(page, () => registrationMetadataPage.editAffiliationsModal.saveAffiliationsButton.click());
+    await waitForApiWrite(page, () => registrationMetadataPage.editAffiliationsModal.saveAffiliationsButton.click());
     await reloadMetadataPage(registrationMetadataPage, page);
 
     await expect
@@ -233,7 +211,7 @@ test.describe('Registration Metadata', { tag: '@core' }, () => {
 
     await registrationMetadataPage.clickOnEdit('Affiliated Institutions');
     await registrationMetadataPage.editAffiliationsModal.clickOnCheckbox(institutionId);
-    await waitForSave(page, () => registrationMetadataPage.editAffiliationsModal.saveAffiliationsButton.click());
+    await waitForApiWrite(page, () => registrationMetadataPage.editAffiliationsModal.saveAffiliationsButton.click());
     await reloadMetadataPage(registrationMetadataPage, page);
 
     await expect(registrationMetadataPage.section('Affiliated Institutions').locator('osf-affiliated-institutions-view')).toBeVisible();
@@ -248,7 +226,7 @@ test.describe('Registration Metadata', { tag: '@core' }, () => {
     await expect(registrationMetadataPage.section('Subjects').getByRole('tree')).toBeVisible();
     expect(await registrationMetadataPage.getSubjectList()).not.toContain(newTopLevelSubject);
 
-    await waitForSave(page, () => registrationMetadataPage.selectTopLevelSubject(newTopLevelSubject));
+    await waitForApiWrite(page, () => registrationMetadataPage.selectTopLevelSubject(newTopLevelSubject));
     await reloadMetadataPage(registrationMetadataPage, page);
 
     await expect(registrationMetadataPage.subjectChip(newTopLevelSubject)).toBeVisible();
@@ -259,7 +237,7 @@ test.describe('Registration Metadata', { tag: '@core' }, () => {
 
     await expect(registrationMetadataPage.subjectChip(topLevelSubject)).toBeVisible();
 
-    await waitForSave(page, () => registrationMetadataPage.removeSubject(topLevelSubject));
+    await waitForApiWrite(page, () => registrationMetadataPage.removeSubject(topLevelSubject));
     await reloadMetadataPage(registrationMetadataPage, page);
 
     await expect(registrationMetadataPage.section('Subjects').getByRole('tree')).toBeVisible();
@@ -283,7 +261,7 @@ test.describe('Registration Metadata', { tag: '@core' }, () => {
     expect(await registrationMetadataPage.getTagsList()).not.toContain(newTag);
 
     await registrationMetadataPage.tagInput.fill(newTag);
-    await waitForSave(page, () => registrationMetadataPage.tagInput.press('Enter'));
+    await waitForApiWrite(page, () => registrationMetadataPage.tagInput.press('Enter'));
 
     await expect(registrationMetadataPage.tagChip(newTag)).toBeVisible();
   });
@@ -293,7 +271,7 @@ test.describe('Registration Metadata', { tag: '@core' }, () => {
 
     await expect(registrationMetadataPage.tagChip(newTag)).toBeVisible();
 
-    await waitForSave(page, () => registrationMetadataPage.clickOnRemoveTag(newTag));
+    await waitForApiWrite(page, () => registrationMetadataPage.clickOnRemoveTag(newTag));
 
     await expect(registrationMetadataPage.tagChip(newTag)).toHaveCount(0);
   });

@@ -40,6 +40,7 @@ on:
           - Profile
           - RegistrationMetadata
           - RegistrationSidebar
+          - RegistrationUserPermissions
           - Search
           - User
       browser:
@@ -105,6 +106,7 @@ env:
   WRITE_USER_PASSWORD: ${{ secrets.WRITE_USER_PASSWORD }}
   READ_USER: ${{ secrets.READ_USER }}
   READ_USER_PASSWORD: ${{ secrets.READ_USER_PASSWORD }}
+  COS_QA_TOKEN: ${{ secrets.COS_QA_TOKEN }}
   SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
 jobs:
@@ -183,6 +185,7 @@ jobs:
             Profile) echo "path=tests/profile.spec.ts" >> "$GITHUB_OUTPUT" ;;
             RegistrationMetadata) echo "path=tests/registrationMetadata.spec.ts" >> "$GITHUB_OUTPUT" ;;
             RegistrationSidebar) echo "path=tests/registrationSidebar.spec.ts" >> "$GITHUB_OUTPUT" ;;
+            RegistrationUserPermissions) echo "path=tests/registrationUserPermissions.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Search) echo "path=tests/search.spec.ts" >> "$GITHUB_OUTPUT" ;;
             User) echo "path=tests/user.spec.ts" >> "$GITHUB_OUTPUT" ;;
             *) echo "path=tests/" >> "$GITHUB_OUTPUT" ;;

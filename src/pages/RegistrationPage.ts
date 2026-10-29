@@ -233,6 +233,11 @@ export class RegistrationMetadataPage extends BasePage {
     return this.page.getByRole('dialog', { name, exact: true });
   }
 
+  /** Every section's Edit button - none render for users without write permission. */
+  get editButtons(): Locator {
+    return this.page.locator('osf-metadata').getByRole('button', { name: 'Edit', exact: true });
+  }
+
   /** Clicks a button inside whichever dialog(s) are open, falling back to the page. */
   async clickOnButton(buttonName: string): Promise<void> {
     await this.page
@@ -471,9 +476,115 @@ export class RegistrationMetadataPage extends BasePage {
   }
 }
 
+/** Sort option label -> the `sort` query param the files list request is sent with (verified live). */
+const FILES_SORT_PARAMS: Record<string, string> = {
+  'Name: A-Z': 'name',
+  'Name: Z-A': '-name',
+  'Last modified: oldest to newest': 'date_modified',
+  'Last modified: newest to oldest': '-date_modified',
+};
+
 export class RegistrationFilesListPage extends BasePage {
   get identity(): Locator {
     return this.page.locator('osf-files-container');
+  }
+
+  get filesPageText(): Locator {
+    return this.page.getByRole('heading', { level: 1 });
+  }
+
+  get archiveLink(): Locator {
+    return this.page.getByRole('button', { name: 'Archive of OSF Storage', exact: true });
+  }
+
+  get searchInput(): Locator {
+    return this.page.getByPlaceholder('Search your files');
+  }
+
+  get downloadAsZipButton(): Locator {
+    return this.page.getByRole('button', { name: 'Download As Zip', exact: true });
+  }
+
+  /** Scoped to the files tree - the left sidenav is a `tree` of `treeitem`s too. */
+  fileRow(fileName: string): Locator {
+    return this.page.locator('osf-files-tree-explorer').getByRole('treeitem', { name: fileName, exact: true });
+  }
+
+  /** The file name button - opens the file's detail page in a new tab. */
+  fileLink(fileName: string): Locator {
+    return this.fileRow(fileName).getByRole('button', { name: fileName, exact: true });
+  }
+
+  /** The row's "..." menu button has no accessible name; `osf-file-menu` is the only hook. */
+  fileMenuButton(fileName: string): Locator {
+    return this.fileRow(fileName).locator('osf-file-menu').getByRole('button');
+  }
+
+  /**
+   * Matched by exact visible text: the menu items' `aria-label`s are often untranslated
+   * i18n keys (`common.buttons.download`), so their accessible name isn't reliable.
+   */
+  menuItem(name: string): Locator {
+    return this.page.getByRole('menuitem').filter({ hasText: new RegExp(`^\\s*${name}\\s*$`) });
+  }
+
+  /**
+   * The sort combobox's accessible name is an untranslated i18n key that follows the
+   * current value (`files.sort.nameAZ`), so the `p-select` host is used instead.
+   */
+  get sortDropdown(): Locator {
+    return this.page.locator('osf-files p-select');
+  }
+
+  /** Opens "Archive of OSF Storage" and waits for its files to render. */
+  async openArchive(): Promise<void> {
+    await this.archiveLink.click();
+    await this.page.locator('osf-files-tree-row div.files-table-row.previous-folder').waitFor();
+  }
+
+  /** Port of `find_file_by_search` - types the name and waits for the filtered list request. */
+  async searchFor(fileName: string): Promise<Locator> {
+    await Promise.all([
+      this.page.waitForResponse(
+        (response) =>
+          new URL(response.url()).searchParams.get('filter[name]') === fileName && response.ok()
+      ),
+      this.searchInput.fill(fileName),
+    ]);
+    const row = this.fileRow(fileName);
+    await expect(row).toBeVisible();
+    return row;
+  }
+
+  /** Picks a sort option and waits for the files list request it sends. */
+  async selectSortFromList(sortName: string): Promise<void> {
+    const sortParam = FILES_SORT_PARAMS[sortName];
+    if (!sortParam) throw new Error(`Unknown sort option: ${sortName}`);
+    await this.sortDropdown.click();
+    await Promise.all([
+      this.page.waitForResponse(
+        (response) =>
+          response.url().includes('/files/osfstorage/') &&
+          new URL(response.url()).searchParams.get('sort') === sortParam
+      ),
+      this.page
+        .getByRole('option')
+        .filter({ hasText: new RegExp(`^\\s*${sortName}\\s*$`) })
+        .click(),
+    ]);
+  }
+
+  /** Name and "last modified" text of every file row, read in one pass so both come from the same render. */
+  async readRows(): Promise<Array<{ name: string; modified: string }>> {
+    return this.page
+      .locator('osf-files-tree-row div.files-table-row:not(.previous-folder)')
+      .evaluateAll((rows) =>
+        rows.map((row) => ({
+          name: (row.querySelector(':scope > .table-cell')?.textContent ?? '').trim(),
+          // 3rd `files-table-cell` (downloads, size, modified) - Python's `//div[@class="files-table-cell"][3]`
+          modified: (row.querySelectorAll(':scope > .files-table-cell')[2]?.textContent ?? '').trim(),
+        }))
+      );
   }
 }
 
@@ -685,22 +796,45 @@ export class RegistrationContributorsPage extends BasePage {
     await this.page.locator('ul li', { hasText: permission }).first().click();
   }
 
+  /**
+   * The two filter `p-select`s render before the table's per-row permission selects.
+   * Their comboboxes are named "Filter by permission"/"Bibliography" only until a value
+   * is picked - the name then follows the value - so the hosts are used instead.
+   */
   get permissionFilterDropdown(): Locator {
-    return this.page.locator('div.p-select-dropdown').first();
+    return this.page.locator('osf-contributors p-select').nth(0);
+  }
+
+  /**
+   * Options are matched by exact visible text: their `aria-label`s are untranslated i18n
+   * keys (`project.contributors.permissions.read`), and a substring match on "Read"
+   * picks "Read + Write", which is listed first (verified live).
+   */
+  private filterOption(label: string): Locator {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return this.page.getByRole('option').filter({ hasText: new RegExp(`^\\s*${escaped}\\s*$`) });
   }
 
   async selectPermissionFilterFromDropdownList(permission: string): Promise<void> {
     await this.permissionFilterDropdown.click();
-    await this.page.locator('ul li', { hasText: permission }).first().click();
+    await this.filterOption(permission).click();
   }
 
   get bibliographyFilterDropdown(): Locator {
-    return this.page.locator('span[aria-label="Bibliography"] ~ div').first();
+    return this.page.locator('osf-contributors p-select').nth(1);
   }
 
   async selectBibliographyFilterFromDropdownList(bibliography: string): Promise<void> {
     await this.bibliographyFilterDropdown.click();
-    await this.page.locator('ul li', { hasText: bibliography }).first().click();
+    await this.filterOption(bibliography).click();
+  }
+
+  get addContributorButton(): Locator {
+    return this.page.getByRole('button', { name: 'Add Contributor', exact: true });
+  }
+
+  get bibliographicCheckboxes(): Locator {
+    return this.tableRows.getByLabel('Bibliographic Contributor', { exact: true });
   }
 
   async clickOnBibliographicCheckbox(): Promise<void> {
