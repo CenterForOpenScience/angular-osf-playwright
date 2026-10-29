@@ -1,6 +1,7 @@
 import { test as base, expect } from '../src/fixtures';
 import { Page, Locator, Download } from '@playwright/test';
 import { FilesPage } from '../src/pages/FilesPage';
+import { LandingPage } from '../src/pages/LandingPage';
 import * as osfApi from '../src/api/osfApi';
 import * as settings from '../config/settings';
 import { present, clickExpectingDownload } from '../src/utils';
@@ -388,3 +389,75 @@ test.describe('Files Page Sort', () => {
   }
 
 });
+
+const fileName = 'osf_selenium_test_file.txt';
+const VOL_MESSAGE =
+  'You are viewing OSF through a view-only link, which may limit the data you have permission to see.';
+
+test.describe('Project VOLs', () => {
+  // Equivalent of @markers.dont_run_on_prod
+  test.skip(settings.PRODUCTION, 'Do not run on production');
+ 
+ 
+  // Equivalent of @pytest.mark.parametrize('anonymous', [False, True])
+  for (const anonymous of [false, true]) {
+    test(`VOL project files page (anonymous: ${anonymous})`, async ({
+      page,
+      session,
+      defaultProjectWithFile,
+    }) => {
+
+      let volKey: string | null = null;
+
+      // Create the VOL or AVOL for the project and navigate to the Project Files page
+      try {
+        volKey = await osfApi.createProjectViewOnlyLink(session, defaultProjectWithFile.id, {
+          anonymous,
+        });
+
+        // Verify we are logged out before using the VOL
+        //await page.goto(settings.OSF_HOME);
+
+
+        const volUrl = new URL(
+          `${defaultProjectWithFile.id}/files?view_only=${volKey}`,
+          settings.OSF_HOME
+        ).toString();
+        await page.goto(volUrl);
+
+        const signInButtons = page.getByRole('button', { name: 'Sign in', exact: true });
+        await expect(signInButtons.first()).toBeVisible({ timeout: 15_000 });
+
+        const filesPage = new FilesPage(page);
+
+        // Verify VOL message at the top of the page
+        await expect(page.getByText(VOL_MESSAGE, { exact: true })).toBeVisible();
+
+        // Verify that the Add New File or Folder button is not available
+        await expect(page.getByRole('button', { name: /add (new )?file/i })).toHaveCount(0);
+
+        // Trigger download and verify download path for existance of downloaded file
+        const rowPromise = findFileBySearch(filesPage, fileName);
+        const row = await rowPromise;
+        if (!row) {
+          throw new Error(`Could not find row for file: ${fileName}`);
+        }
+
+        // Click the File Action menu button at the far right side of the row to show the
+        // menu options. Then click the Download option from this menu.
+        const menuButton = row.locator(
+          'button.p-ripple.p-button.p-button-contrast.p-button-icon-only.p-button-raised.p-button-sm.p-button-text.p-component'
+        );
+        await menuButton.click();
+
+        await verifyFileDownload(page, page.getByRole('menuitem', { name: 'Download' }), fileName);
+      }
+      finally {
+        if (volKey)
+          await osfApi.deleteProjectViewOnlyLink(session, defaultProjectWithFile.id, volKey)
+      }
+
+    });
+  }
+});
+ 
