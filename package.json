@@ -17,6 +17,7 @@
     "test:my-preprints": "playwright test tests/myPreprints.spec.ts",
     "test:registration-metadata": "playwright test tests/registrationMetadata.spec.ts",
     "test:registration-sidebar": "playwright test tests/registrationSidebar.spec.ts",
+    "test:registration-user-permissions": "playwright test tests/registrationUserPermissions.spec.ts",
     "test:test": "cross-env TEST_ENV=test playwright test",
     "test:test2": "cross-env TEST_ENV=test2 playwright test",
     "test:test3": "cross-env TEST_ENV=test3 playwright test",

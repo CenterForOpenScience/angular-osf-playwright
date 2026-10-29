@@ -104,6 +104,10 @@ export class EditContributorsModal {
     return row;
   }
 
+  get addContributorButton(): Locator {
+    return this.root.getByRole('button', { name: 'Add Contributor', exact: true });
+  }
+
   rowFor(contributorName: string): Locator {
     return this.tableRows.filter({
       has: this.page.getByRole('link', { name: contributorName, exact: true }),

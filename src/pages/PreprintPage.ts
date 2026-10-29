@@ -810,7 +810,11 @@ export class MyPreprintsPage extends BasePage {
     const isListRequest = (url: URL) =>
       url.pathname.endsWith('/v2/users/me/preprints/') && matches(url.searchParams);
     const captureTitles = async (route: Route) => {
-      const response = await route.fetch();
+      // This page route takes precedence over the context's QA-header route (see
+      // src/fixtures), so the header has to be added here too.
+      const response = await route.fetch({
+        headers: { ...route.request().headers(), ...settings.QA_HEADERS },
+      });
       const data = await response.json();
       titles = (data.data as any[]).map((preprint) => preprint.attributes.title);
       await route.fulfill({ response });

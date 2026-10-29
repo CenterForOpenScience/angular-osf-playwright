@@ -80,6 +80,24 @@ export const CUSTOM_INSTITUTION_DOMAINS = currentEnvironment.customInstitutionDo
 export const ADDON_DOMAIN = currentEnvironment.addons;
 export const ADDON_API_TOKEN = env(currentEnvironment.addonTokenEnvVar);
 
+// Sent as `X-COS-QA-Token` on every request to OSF hosts so the backend exempts the
+// test traffic from API throttling (429s). Unset = no header is sent.
+export const COS_QA_TOKEN = env('COS_QA_TOKEN');
+export const QA_HEADERS: Record<string, string> = COS_QA_TOKEN
+  ? { 'X-COS-QA-Token': COS_QA_TOKEN }
+  : {};
+
+// Origins that get QA_HEADERS from the browser - kept to OSF's own hosts so the token
+// never reaches third parties (analytics, fonts, SHARE).
+export const QA_HEADER_ORIGINS = [
+  OSF_HOME,
+  API_DOMAIN,
+  FILE_DOMAIN,
+  CAS_DOMAIN,
+  ADDON_DOMAIN,
+  ...CUSTOM_INSTITUTION_DOMAINS,
+].map((url) => new URL(url).origin);
+
 export const USER_ONE = env('USER_ONE');
 export const USER_ONE_PASSWORD = env('USER_ONE_PASSWORD');
 export const USER_TWO = env('USER_TWO');

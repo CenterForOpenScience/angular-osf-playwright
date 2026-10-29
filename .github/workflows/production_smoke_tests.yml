@@ -66,6 +66,7 @@ env:
   WRITE_USER_PASSWORD: ${{ secrets.WRITE_USER_PASSWORD }}
   READ_USER: ${{ secrets.READ_USER }}
   READ_USER_PASSWORD: ${{ secrets.READ_USER_PASSWORD }}
+  COS_QA_TOKEN: ${{ secrets.COS_QA_TOKEN }}
 
 jobs:
   # This job sets the browser(s) that will be used in the smoke_test job below.

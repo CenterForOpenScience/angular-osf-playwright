@@ -1,6 +1,35 @@
 import { Page, Locator, Download } from '@playwright/test';
+import { Faker } from '@faker-js/faker';
 
 import * as settings from '../../config/settings';
+
+/**
+ * Award title/URI/number to type into a registration's Funding/Support form - unique
+ * every run, so a Save that does nothing can't pass on an earlier run's values. Used
+ * instead of Python's `get_funder_information` (see README, "Registration metadata").
+ */
+export function generateAwardInformation(fake: Faker): {
+  awardTitle: string;
+  awardUri: string;
+  awardNumber: string;
+} {
+  const id = fake.string.alphanumeric(8);
+  return {
+    awardTitle: `Selenium award ${id}`,
+    awardUri: `https://example.org/awards/${id}`,
+    awardNumber: `AWD-${id}`,
+  };
+}
+
+/** Runs `action` and waits for the OSF API write (any non-GET `/v2/` request) it sends. */
+export async function waitForApiWrite(page: Page, action: () => Promise<void>): Promise<void> {
+  await Promise.all([
+    page.waitForResponse(
+      (response) => response.request().method() !== 'GET' && response.url().includes('/v2/')
+    ),
+    action(),
+  ]);
+}
 
 /**
  * Port of `base/locators.py`'s `Locator.present()`. Waits for the element to become
