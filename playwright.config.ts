@@ -49,18 +49,7 @@ export default defineConfig({
     },
     {
       name: 'firefox',
-      use: {
-        ...devices['Desktop Firefox'],
-        launchOptions: {
-          firefoxUserPrefs: {
-            // Headed Firefox on Windows stops painting (and firing requestAnimationFrame)
-            // while its window is covered by other windows. Playwright's "stable" check
-            // waits on animation frames, so every click then hangs on "waiting for
-            // element to be visible, enabled and stable" until it times out.
-            'widget.windows.window_occlusion_tracking.enabled': false,
-          },
-        },
-      },
+      use: { ...devices['Desktop Firefox'] },
     },
     {
       name: 'edge',
@@ -72,5 +61,6 @@ export default defineConfig({
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
     },
+
   ],
 });

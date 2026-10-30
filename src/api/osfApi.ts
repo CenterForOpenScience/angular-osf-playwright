@@ -406,6 +406,7 @@ export async function getUserPatData(
  * dropped here since it truly does nothing.
  */
 
+
 async function listAddonDisplayNames(path: string): Promise<string[]> {
   const addonSession = await createAddonSession();
   try {
@@ -416,7 +417,8 @@ async function listAddonDisplayNames(path: string): Promise<string[]> {
   }
 }
 
-export function getExternalStorageAddons(): Promise<string[]> {
+/** Function to get all the storage addons configured for the environment. */
+export async function getExternalStorageAddons(_session?: unknown): Promise<string[]> {
   return listAddonDisplayNames('/v1/external-storage-services');
 }
 
@@ -1493,6 +1495,54 @@ export interface PreprintProvider {
   additionalProviders: string[];
 }
 
+export interface ViewOnlyLinkOptions {
+  name?: string;
+  anonymous?: boolean;
+}
+
+export async function createProjectViewOnlyLink(
+  session: OsfSession,
+  nodeId: string,
+  { name = 'API created VOL', anonymous = false }: ViewOnlyLinkOptions = {}
+): Promise<string | null> {
+
+  const payload = {
+    data: {
+      type: 'view-only-links',
+      attributes: { name, anonymous },
+    },
+  };
+
+  const data = await session.post(`/v2/nodes/${nodeId}/view_only_links/`, payload);
+
+  if (!data) {
+    return null;
+  }
+  // return just the key value (i.e. access token)
+  return data?.data?.attributes?.key ?? null;
+}
+
+export async function getViewOnlyLinkId(
+  session: OsfSession,
+  nodeId: string,
+  volKey: string
+): Promise<string | null> {
+  const data = await session.get(`/v2/nodes/${nodeId}/view_only_links/?page[size]=100`);
+  const link = data?.data?.find(
+    (vol: { attributes?: { key?: string } }) => vol.attributes?.key === volKey
+  );
+  return link?.id ?? null;
+}
+
+export async function deleteProjectViewOnlyLink(
+  session: OsfSession,
+  nodeId: string,
+  volKey: string,
+): Promise<void> {
+  const volId = await getViewOnlyLinkId(session, nodeId, volKey)
+  await session.delete(`/v2/nodes/${nodeId}/view_only_links/${volId}/`);
+ 
+}
 /**
  * Synchronous port of `get_providers_list()` for preprint providers, to build one
  * test per provider while Playwright collects tests, like pytest's

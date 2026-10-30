@@ -62,6 +62,7 @@ type Fixtures = {
   publicLinkProject: osfApi.OsfProject;
   defaultProjectWithAllMetadata: osfApi.OsfProject;
   defaultAddonsProject: osfApi.OsfProject;
+  defaultProjectWithFile: osfApi.OsfProject;
 };
 
 function getSessionCookieName(): string {
@@ -410,6 +411,29 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
       const nodeId = await osfApi.getNodeIdByTitle(session, settings.ADDONS_TEST_PROJECT_TITLE);
       if (!nodeId) {
         throw new Error('Could not find node with title "OSF Test Project for Addons"');
+      }
+      node = await osfApi.getNode(session, nodeId);
+    }
+
+    await use(node);
+    // teardown — the Python docstring says "Deletes the project at the end of the test run,"
+    // but the code shown doesn't actually perform a delete. Add it here if that's expected:
+    // await osfApi.deleteNode(session, node.id);
+  },
+
+  defaultProjectWithFile: async ({ session }, use) => {
+    /**
+     * Creates a new project through the api and returns it. Deletes the project at the end
+     * of the test run. If PREFERRED_NODE is set, returns the APIDetail of preferred node.
+     */
+    let node: osfApi.OsfProject;
+
+    if (settings.PREFERRED_NODE) {
+      node = await osfApi.getNode(session);
+    } else {
+      const nodeId = await osfApi.getNodeIdByTitle(session, 'Default OSF Test Project');
+      if (!nodeId) {
+        throw new Error('Could not find node with title "Default OSF Test Project"');
       }
       node = await osfApi.getNode(session, nodeId);
     }
