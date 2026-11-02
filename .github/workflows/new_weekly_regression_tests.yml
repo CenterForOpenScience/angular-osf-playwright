@@ -41,6 +41,7 @@ on:
           - RegistrationMetadata
           - RegistrationSidebar
           - RegistrationUserPermissions
+          - Registries
           - Search
           - User
       browser:
@@ -186,6 +187,7 @@ jobs:
             RegistrationMetadata) echo "path=tests/registrationMetadata.spec.ts" >> "$GITHUB_OUTPUT" ;;
             RegistrationSidebar) echo "path=tests/registrationSidebar.spec.ts" >> "$GITHUB_OUTPUT" ;;
             RegistrationUserPermissions) echo "path=tests/registrationUserPermissions.spec.ts" >> "$GITHUB_OUTPUT" ;;
+            Registries) echo "path=tests/registries.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Search) echo "path=tests/search.spec.ts" >> "$GITHUB_OUTPUT" ;;
             User) echo "path=tests/user.spec.ts" >> "$GITHUB_OUTPUT" ;;
             *) echo "path=tests/" >> "$GITHUB_OUTPUT" ;;

@@ -141,9 +141,9 @@ tick it in **both** files.
 | 14 | My preprints | `tests/test_my_preprints.py` | `tests/myPreprints.spec.ts` | [x] Migrated |
 | 15 | Registration moderation | `tests/test_registration_moderation.py` | — | [ ] Not migrated |
 | 16 | Registration user permissions | `tests/test_registration_user_permissions.py` | `tests/registrationUserPermissions.spec.ts` | [x] Migrated |
-| 17 | Registries | `tests/test_registries.py` | — | [ ] Not migrated |
+| 17 | Registries | `tests/test_registries.py` | `tests/registries.spec.ts` | [x] Migrated |
 
-Progress: **11 / 17** sections migrated.
+Progress: **12 / 17** sections migrated.
 
 ## Notable differences from the Python suite
 
@@ -416,5 +416,47 @@ Progress: **11 / 17** sections migrated.
     through the API.
   - `get_modified_dates_from_table` is ported into `BasePage` as
     `getModifiedDatesFromTable()`, ready for the My Projects/My Registrations sections.
+- **Registries**: ports all of `test_registries.py` - 44 tests, the same count pytest
+  collects on uat1 (12 plus one Discover page test per registration provider, 32 on
+  uat1). The provider list comes from `osfApi.getRegistrationProvidersSync()` at
+  collection time, like the Preprints providers. New page objects are in
+  `src/pages/RegistriesPage.ts`. The Files page checks (download, zip, the four sorts)
+  moved from `registrationUserPermissions.spec.ts` to `src/utils/registrationFiles.ts`,
+  so both specs share them. Changes, verified live on uat1:
+  - Every Python `identity` here was an Ember-era hook that's gone from the app. They
+    were replaced with the Angular components (`osf-registries-provider-search`,
+    `osf-new-registration`, `osf-registries-metadata-step`, `osf-review`) and the
+    Summary step's labelled textbox.
+  - Branded Discover pages now live at `/registries/<id>/discover`. Python's test passed
+    without checking anything for a provider whose `branded_discovery_page` is false. It
+    is now skipped for those providers (`characterlabregistry`, `osf` on uat1), so the
+    report shows that nothing was checked.
+  - `search results exist`: the test already starts on the registries landing page, so
+    Registries > Discover in the sidenav doesn't change the URL. It clicks the two items
+    directly; `Navbar.clickRegistriesLink()` waits for a URL change.
+  - `detail page`: Python's "skip withdrawn registrations" selector matched every card's
+    title link, so it never skipped anything. The test opens the first result, as Python
+    did. It now waits for the search and sort responses instead of sleeping.
+  - `subjects sort order`: the subject tree items are scoped to the Subjects card. The
+    Python `li[role="treeitem"]` also matched the sidenav's tree items. The test now also
+    requires at least two subjects, so an empty list can't pass as "sorted". The draft is
+    deleted after the test; Python's fixture never cleaned it up (its docstring assumed
+    the draft went away with a project, but the draft has none). The unused
+    `default_project` dependency was dropped.
+  - `submit no project registration` stays skipped, as in Python. The Add New page now
+    has a required "I understand and confirm..." checkbox before Create draft, and the
+    Summary step's URL is `/1` (was `/1-summary`). Its locators were checked live up to
+    the Register dialog, without submitting, because a submitted registration can't be
+    deleted.
+  - `file detail page` stays skipped (ENG-9640). The MD5/SHA-2 copy buttons are only
+    checked for visibility now. Python compared the OS clipboard (tkinter) with a
+    `data-clipboard-text` attribute that the Angular buttons no longer have. A
+    registration's Keywords tab shows no tag input on uat1, so the tag step would fail
+    if the test were re-enabled.
+  - Python's `sort_name_z_to_a` asserted ascending order, the same bug as in Registration
+    user permissions. The shared helper asserts descending. The swapped
+    "descending"/"ascending" date test names are kept as in Python. Downloads are
+    checked through Playwright's download event, not `~/Downloads`.
+  - The unused `files_list_page` fixture (My Registrations > View > Files) wasn't ported.
 
 ## Next steps

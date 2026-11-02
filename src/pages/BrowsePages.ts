@@ -42,6 +42,10 @@ export class RegistriesLandingPage extends BasePage {
   get identity(): Locator {
     return this.page.locator('osf-registries-landing');
   }
+
+  get searchBox(): Locator {
+    return this.page.getByPlaceholder('Search Registrations', { exact: true });
+  }
 }
 
 export class PreprintLandingPage extends BasePage {

@@ -34,6 +34,7 @@ on:
           - registrationMetadata.spec.ts
           - registrationSidebar.spec.ts
           - registrationUserPermissions.spec.ts
+          - registries.spec.ts
           - search.spec.ts
           - user.spec.ts
           - projectFiles.spec.ts

@@ -44,6 +44,31 @@ export class FileDetailPage extends BasePage {
     return this.page.getByRole('tab', { name: 'Keywords', exact: true });
   }
 
+  /** First entry on the Revisions tab - a link-styled button named "<n>. <date>" that expands it. */
+  get firstRevisionToggleButton(): Locator {
+    return this.page.locator('osf-file-revisions').getByRole('button', { name: /^\d+\./ }).first();
+  }
+
+  /**
+   * Both copy buttons share the accessible name "Copy to clipboard button" (their
+   * `aria-label`), so they're matched by their visible text.
+   */
+  get copyMd5Button(): Locator {
+    return this.page.locator('osf-file-revisions').getByRole('button').filter({ hasText: /^\s*Copy MD5\s*$/ }).first();
+  }
+
+  get copySha2Button(): Locator {
+    return this.page.locator('osf-file-revisions').getByRole('button').filter({ hasText: /^\s*Copy SHA-2\s*$/ }).first();
+  }
+
+  get tagInput(): Locator {
+    return this.page.getByLabel('Tag input', { exact: true });
+  }
+
+  tag(tagName: string): Locator {
+    return this.page.locator(`p-chip[aria-label="${tagName}"]`);
+  }
+
   get fileRenderer(): Locator {
     return this.page.locator('iframe[title="Rendering of document"]');
   }
