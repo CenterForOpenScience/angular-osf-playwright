@@ -2,6 +2,9 @@ import { execFileSync } from 'child_process';
 
 import * as settings from '../../config/settings';
 import { createAddonSession, createSession, OsfApiError, OsfSession } from './session';
+import { APIRequestContext, expect } from '@playwright/test';
+ 
+export type AnalyticsTimespan = 'week' | 'fortnight' | 'month';
 
 
 export interface OsfUser {
@@ -1543,6 +1546,48 @@ export async function deleteProjectViewOnlyLink(
   await session.delete(`/v2/nodes/${nodeId}/view_only_links/${volId}/`);
  
 }
+
+export interface NodeAnalyticsAttributes {
+    popular_pages: { path: string; route: string; title: string; count: number }[];
+    unique_visits: { date: string; count: number }[];
+    time_of_day: { hour: number; count: number }[];
+    referer_domain: { referer_domain: string; count: number }[];
+  }
+
+  export interface NodeAnalyticsData {
+    id: string;
+    type: 'node-analytics';
+    attributes: NodeAnalyticsAttributes;
+  }
+
+  /**
+   * Return the data from the metrics Node Analytics query for a given project node.
+   * There are three timespans available: 'week', 'fortnight', and 'month'.
+   *
+   * `session` is an APIRequestContext whose baseURL is the API domain root
+   * (e.g. https://api.staging.osf.io/), with auth headers if your API needs them.
+   */
+  export async function getProjectNodeAnalyticsData(
+    session: OsfSession,
+    nodeId: string,
+    timespan: AnalyticsTimespan = 'week',
+  ): Promise<NodeAnalyticsData | null> {
+    const url = `_/metrics/query/node_analytics/${nodeId}/${timespan}/`;
+    const body = await session.get(url);
+    return body?.data || null;
+  }
+
+  /** Index of today's (UTC) entry in unique_visits; falls back to the last entry. */
+  export function todayIndex(attrs: NodeAnalyticsAttributes, now = new Date()): number {
+    const today = now.toISOString().slice(0, 10);
+    const i = attrs.unique_visits.findIndex((d) => d.date.startsWith(today));
+    return i >= 0 ? i : attrs.unique_visits.length - 1;
+  }
+
+  /** Index of the current (UTC) hour in time_of_day, or -1 if absent. */
+  export function currentHourIndex(attrs: NodeAnalyticsAttributes, now = new Date()): number {
+    return attrs.time_of_day.findIndex((d) => d.hour === now.getUTCHours());
+  }
 /**
  * Synchronous port of `get_providers_list()` for preprint providers, to build one
  * test per provider while Playwright collects tests, like pytest's
@@ -1563,6 +1608,7 @@ export function getPreprintProvidersSync(): PreprintProvider[] {
         additionalProviders: provider.attributes.additional_providers ?? [],
       }))
   );
+
 }
 
 /** The fields of a registration provider that the registries spec's per-provider test uses. */
