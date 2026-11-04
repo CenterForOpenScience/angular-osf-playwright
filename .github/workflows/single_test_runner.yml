@@ -149,6 +149,11 @@ jobs:
             npx playwright install --with-deps ${{ matrix.browser }}
           fi
 
+      - name: Get runner public IP
+        run: |
+          curl -s --max-time 15 https://api.ipify.org || echo "Could not determine runner IP"
+          echo
+
       - name: Run test file
         env:
           TEST_ENV: ${{ github.event.inputs.test_env }}
