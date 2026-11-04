@@ -14,7 +14,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 2,
-  workers: process.env.CI ? 1 : 1,
+  workers: process.env.CI ? 1 : 2,
   // 'github' prints failures as inline GitHub Actions annotations (file/line + error)
   // directly in the run log/checks UI. 'json' feeds scripts/write-failure-summary.js,
   // which turns that into a markdown table in the job's Summary page - both let you see

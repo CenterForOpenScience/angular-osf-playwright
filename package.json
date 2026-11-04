@@ -18,6 +18,7 @@
     "test:registration-metadata": "playwright test tests/registrationMetadata.spec.ts",
     "test:registration-sidebar": "playwright test tests/registrationSidebar.spec.ts",
     "test:registration-user-permissions": "playwright test tests/registrationUserPermissions.spec.ts",
+    "test:registries": "playwright test tests/registries.spec.ts",
     "test:test": "cross-env TEST_ENV=test playwright test",
     "test:test2": "cross-env TEST_ENV=test2 playwright test",
     "test:test3": "cross-env TEST_ENV=test3 playwright test",

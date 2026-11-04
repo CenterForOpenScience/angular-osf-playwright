@@ -1564,3 +1564,77 @@ export function getPreprintProvidersSync(): PreprintProvider[] {
       }))
   );
 }
+
+/** The fields of a registration provider that the registries spec's per-provider test uses. */
+export interface RegistrationProvider {
+  id: string;
+  brandedDiscoveryPage: boolean;
+}
+
+/**
+ * Synchronous port of `get_providers_list(type='registrations')`, to build one test per
+ * registration provider while Playwright collects tests, like pytest's
+ * `@pytest.fixture(params=providers())`. `/v2/providers/registrations/` is public and
+ * isn't paginated (the Python call read only `data` too).
+ */
+export function getRegistrationProvidersSync(): RegistrationProvider[] {
+  return getPublicListSync(
+    'OSF_REGISTRATION_PROVIDERS',
+    '/v2/providers/registrations/',
+    'registration provider list',
+    (data) =>
+      data.map((provider) => ({
+        id: provider.id,
+        brandedDiscoveryPage: Boolean(provider.attributes.branded_discovery_page),
+      }))
+  );
+}
+
+/**
+ * Port of `get_registration_schemas_for_provider` - `[name, id]` pairs of the schemas a
+ * registration provider allows.
+ */
+export async function getRegistrationSchemasForProvider(
+  session: OsfSession,
+  providerId = 'osf'
+): Promise<Array<[string, string]>> {
+  const data = await session.get(`/v2/providers/registrations/${providerId}/schemas/`, {
+    'page[size]': 50,
+  });
+  return (data.data as any[]).map((schema) => [schema.attributes.name, schema.id]);
+}
+
+/**
+ * Port of `create_draft_registration_without_project`. Returns the draft's id. Python
+ * sent `provider: null`; the provider the schema list came from (`osf`) is sent here.
+ */
+export async function createDraftRegistrationWithoutProject(
+  session: OsfSession,
+  schemaId: string,
+  providerId = 'osf'
+): Promise<string> {
+  const data = await session.post('/v2/draft_registrations/', {
+    data: {
+      type: 'draft_registrations',
+      relationships: {
+        registration_schema: { data: { type: 'registration-schemas', id: schemaId } },
+        provider: { data: { type: 'registration-providers', id: providerId } },
+      },
+    },
+  });
+  return data.data.id;
+}
+
+/** Deletes a draft registration (not part of the Python API - its drafts were never cleaned up). */
+export async function deleteDraftRegistration(session: OsfSession, draftId: string): Promise<void> {
+  await session.delete(`/v2/draft_registrations/${draftId}/`);
+}
+
+/** Port of `delete_project` - deletes `guid` only if it is one of the session user's nodes. */
+export async function deleteProject(session: OsfSession, guid: string): Promise<void> {
+  const owner = await currentUser(session);
+  const data = await session.get(owner.nodesUrl);
+  if ((data.data as any[]).some((node) => node.id === guid)) {
+    await session.delete(`/v2/nodes/${guid}/`);
+  }
+}
