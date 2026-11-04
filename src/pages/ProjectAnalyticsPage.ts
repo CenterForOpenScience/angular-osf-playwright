@@ -37,6 +37,11 @@ export class AnalyticsPage extends GuidBasePage {
   readonly uniqueVisitsCanvas: Locator;
   readonly timeOfDayCanvas: Locator;
   readonly popularPagesCanvas: Locator;
+  readonly duplicatesKpi: Locator;
+  readonly linksToProjectKpi: Locator;
+  readonly templateCopiesKpi: Locator;
+  readonly viewDuplicatesButton: Locator;
+  readonly viewLinksButton: Locator;
 
   constructor(page: Page, verify: boolean = false, guid: string, timespan?: AnalyticsTimespan) {
     super(page, verify, guid);
@@ -60,7 +65,25 @@ export class AnalyticsPage extends GuidBasePage {
     this.timeOfDayCanvas = this.timeOfDayVisitsChart.locator('canvas');
     this.popularPagesCanvas = this.popularPagesChart.locator('canvas');
     this.dateRangeDropdown = page.getByRole('button', { name: 'dropdown trigger' });
+    this.duplicatesKpi = this.kpi('Duplicates');
+    this.linksToProjectKpi = this.kpi('Links to this project');
+    this.templateCopiesKpi = this.kpi('Template copies');
+    this.viewDuplicatesButton = this.duplicatesKpi.getByRole('button', { name: 'View duplicates' });
+    this.viewLinksButton = this.linksToProjectKpi.getByRole('button', { name: 'View links' });
 
+  }
+
+  /** The number on a card. While loading, the card shows a placeholder with no digits, so this waits for the number. */
+  async kpiValue(kpi: Locator): Promise<number> {
+    const value = kpi.getByText(/^\d+$/);
+    await expect(value).toBeVisible();
+    return Number((await value.innerText()).trim());
+  }
+
+  private kpi(title: string): Locator {
+    return this.page.locator('osf-analytics-kpi').filter({
+      has: this.page.getByText(title, { exact: true }),
+    });
   }
 
   protected path(): string {
