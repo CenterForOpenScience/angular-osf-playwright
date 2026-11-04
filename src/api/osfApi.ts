@@ -1588,6 +1588,26 @@ export interface NodeAnalyticsAttributes {
   export function currentHourIndex(attrs: NodeAnalyticsAttributes, now = new Date()): number {
     return attrs.time_of_day.findIndex((d) => d.hour === now.getUTCHours());
   }
+
+  export interface ProjectRelatedCounts {
+    forksCount: number;
+    linksToCount: number;
+    templateCount: number;
+}
+
+/** Duplicates (forks), links to this project, and template copies for a node. */
+export async function getProjectRelatedCounts(
+    session: OsfSession,
+    nodeId: string,
+): Promise<ProjectRelatedCounts> {
+    const body = await session.get(`v2/nodes/${nodeId}/?related_counts=true`);
+    const rels = body.data.relationships;
+    return {
+        forksCount: rels.forks?.links?.related?.meta?.count ?? 0,
+        linksToCount: rels.linked_by_nodes?.links?.related?.meta?.count ?? 0,
+        templateCount: body.meta?.templated_by_count ?? 0,
+    };
+}
 /**
  * Synchronous port of `get_providers_list()` for preprint providers, to build one
  * test per provider while Playwright collects tests, like pytest's
