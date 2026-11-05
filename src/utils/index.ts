@@ -259,3 +259,24 @@ export async function clickExpectingPopupByHref(
     : titleLocator;
   return clickExpectingPopup(page, target);
 }
+
+/** Formats an OSF API timestamp the way the Angular UI does ('MMM d, y, h:mm a'). */
+export function formatApiDateAsUi(apiDate: string, timeZone: string): string {
+  const iso = /[zZ]|[+-]\d{2}:?\d{2}$/.test(apiDate) ? apiDate : `${apiDate}Z`;
+  return normalizeSpaces(
+    new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone,
+    }).format(new Date(iso)),
+  );
+}
+
+/** Newer ICU versions put a narrow no-break space before AM/PM; collapse all whitespace. */
+export function normalizeSpaces(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}

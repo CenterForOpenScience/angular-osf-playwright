@@ -1608,6 +1608,73 @@ export async function getProjectRelatedCounts(
         templateCount: body.meta?.templated_by_count ?? 0,
     };
 }
+
+export interface NodeDetails {
+  id: string;
+  type: string;
+  attributes: {
+    title: string;
+    description: string;
+    tags: string[];
+    date_created: string;
+    date_modified: string;
+    [key: string]: unknown;
+  };
+  relationships?: Record<string, unknown>;
+}
+
+export async function getNodeDetails(
+  session:OsfSession,
+  nodeId: string,
+): Promise<NodeDetails | null> {
+  const data = await session.get(`/v2/nodes/${nodeId}/`);
+  return (data?.data as NodeDetails) ?? null;
+}
+
+export async function getProjectLicenseName(
+  session: OsfSession,
+  nodeId: string,
+): Promise<string> {
+  const data = await session.get(`/v2/nodes/${nodeId}/`);
+  const licenseId: string = data.data.relationships.license.data.id;
+  const licenseData = await session.get(`/v2/licenses/${licenseId}/`);
+  return licenseData.data.attributes.name;
+}
+
+/**
+ * Retrieves affiliated institution list for a given project.
+ */
+export async function getProjectInstitutions(
+  session: OsfSession,
+  nodeId: string,
+): Promise<string[]> {
+  const data = await session.get(`/v2/nodes/${nodeId}/institutions/`);
+  return data.data.map((institution: any) => institution.id);
+}
+
+/**
+ * Retrieves subjects for a given project.
+ */
+export async function getProjectSubjects(
+  session: OsfSession,
+  nodeId: string,
+): Promise<string[]> {
+  const data = await session.get(`/v2/nodes/${nodeId}/subjects/`);
+  return data.data.map((subject: any) => subject.attributes.text);
+}
+
+/**
+ * Retrieves contributors for a given project.
+ */
+export async function getProjectContributors(
+  session: OsfSession,
+  nodeId: string,
+): Promise<string[]> {
+  const data = await session.get(`/v2/nodes/${nodeId}/contributors/`);
+  return data.data.map(
+    (contributor: any) => contributor.embeds.users.data.attributes.full_name,
+  );
+}
 /**
  * Synchronous port of `get_providers_list()` for preprint providers, to build one
  * test per provider while Playwright collects tests, like pytest's
