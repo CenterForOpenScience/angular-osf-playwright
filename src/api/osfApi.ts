@@ -2,6 +2,9 @@ import { execFileSync } from 'child_process';
 
 import * as settings from '../../config/settings';
 import { createAddonSession, createSession, OsfApiError, OsfSession } from './session';
+import { APIRequestContext, expect } from '@playwright/test';
+ 
+export type AnalyticsTimespan = 'week' | 'fortnight' | 'month';
 
 
 export interface OsfUser {
@@ -1543,6 +1546,135 @@ export async function deleteProjectViewOnlyLink(
   await session.delete(`/v2/nodes/${nodeId}/view_only_links/${volId}/`);
  
 }
+
+export interface NodeAnalyticsAttributes {
+    popular_pages: { path: string; route: string; title: string; count: number }[];
+    unique_visits: { date: string; count: number }[];
+    time_of_day: { hour: number; count: number }[];
+    referer_domain: { referer_domain: string; count: number }[];
+  }
+
+  export interface NodeAnalyticsData {
+    id: string;
+    type: 'node-analytics';
+    attributes: NodeAnalyticsAttributes;
+  }
+
+  /**
+   * Return the data from the metrics Node Analytics query for a given project node.
+   * There are three timespans available: 'week', 'fortnight', and 'month'.
+   *
+   * `session` is an APIRequestContext whose baseURL is the API domain root
+   * (e.g. https://api.staging.osf.io/), with auth headers if your API needs them.
+   */
+  export async function getProjectNodeAnalyticsData(
+    session: OsfSession,
+    nodeId: string,
+    timespan: AnalyticsTimespan = 'week',
+  ): Promise<NodeAnalyticsData | null> {
+    const url = `_/metrics/query/node_analytics/${nodeId}/${timespan}/`;
+    const body = await session.get(url);
+    return body?.data || null;
+  }
+
+  /** Index of today's (UTC) entry in unique_visits; falls back to the last entry. */
+  export function todayIndex(attrs: NodeAnalyticsAttributes, now = new Date()): number {
+    const today = now.toISOString().slice(0, 10);
+    const i = attrs.unique_visits.findIndex((d) => d.date.startsWith(today));
+    return i >= 0 ? i : attrs.unique_visits.length - 1;
+  }
+
+  /** Index of the current (UTC) hour in time_of_day, or -1 if absent. */
+  export function currentHourIndex(attrs: NodeAnalyticsAttributes, now = new Date()): number {
+    return attrs.time_of_day.findIndex((d) => d.hour === now.getUTCHours());
+  }
+
+  export interface ProjectRelatedCounts {
+    forksCount: number;
+    linksToCount: number;
+    templateCount: number;
+}
+
+/** Duplicates (forks), links to this project, and template copies for a node. */
+export async function getProjectRelatedCounts(
+    session: OsfSession,
+    nodeId: string,
+): Promise<ProjectRelatedCounts> {
+    const body = await session.get(`v2/nodes/${nodeId}/?related_counts=true`);
+    const rels = body.data.relationships;
+    return {
+        forksCount: rels.forks?.links?.related?.meta?.count ?? 0,
+        linksToCount: rels.linked_by_nodes?.links?.related?.meta?.count ?? 0,
+        templateCount: body.meta?.templated_by_count ?? 0,
+    };
+}
+
+export interface NodeDetails {
+  id: string;
+  type: string;
+  attributes: {
+    title: string;
+    description: string;
+    tags: string[];
+    date_created: string;
+    date_modified: string;
+    [key: string]: unknown;
+  };
+  relationships?: Record<string, unknown>;
+}
+
+export async function getNodeDetails(
+  session:OsfSession,
+  nodeId: string,
+): Promise<NodeDetails | null> {
+  const data = await session.get(`/v2/nodes/${nodeId}/`);
+  return (data?.data as NodeDetails) ?? null;
+}
+
+export async function getProjectLicenseName(
+  session: OsfSession,
+  nodeId: string,
+): Promise<string> {
+  const data = await session.get(`/v2/nodes/${nodeId}/`);
+  const licenseId: string = data.data.relationships.license.data.id;
+  const licenseData = await session.get(`/v2/licenses/${licenseId}/`);
+  return licenseData.data.attributes.name;
+}
+
+/**
+ * Retrieves affiliated institution list for a given project.
+ */
+export async function getProjectInstitutions(
+  session: OsfSession,
+  nodeId: string,
+): Promise<string[]> {
+  const data = await session.get(`/v2/nodes/${nodeId}/institutions/`);
+  return data.data.map((institution: any) => institution.id);
+}
+
+/**
+ * Retrieves subjects for a given project.
+ */
+export async function getProjectSubjects(
+  session: OsfSession,
+  nodeId: string,
+): Promise<string[]> {
+  const data = await session.get(`/v2/nodes/${nodeId}/subjects/`);
+  return data.data.map((subject: any) => subject.attributes.text);
+}
+
+/**
+ * Retrieves contributors for a given project.
+ */
+export async function getProjectContributors(
+  session: OsfSession,
+  nodeId: string,
+): Promise<string[]> {
+  const data = await session.get(`/v2/nodes/${nodeId}/contributors/`);
+  return data.data.map(
+    (contributor: any) => contributor.embeds.users.data.attributes.full_name,
+  );
+}
 /**
  * Synchronous port of `get_providers_list()` for preprint providers, to build one
  * test per provider while Playwright collects tests, like pytest's
@@ -1563,6 +1695,7 @@ export function getPreprintProvidersSync(): PreprintProvider[] {
         additionalProviders: provider.attributes.additional_providers ?? [],
       }))
   );
+
 }
 
 /** The fields of a registration provider that the registries spec's per-provider test uses. */
