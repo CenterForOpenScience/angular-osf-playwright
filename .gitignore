@@ -156,3 +156,6 @@ CLAUDE.md
 # Per-environment Playwright output (--output=test-results-<env>)
 test-results-prod/
 test-results-uat1/
+
+# Files saved by download tests (tests/projectFiles.spec.ts)
+test-downloads/
