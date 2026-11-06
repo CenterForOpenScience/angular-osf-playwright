@@ -13,26 +13,44 @@ export class LandingPage extends BasePage {
   }
 
   get getStartedButton(): Locator {
-    return this.page.locator('button', { hasText: 'Sign Up' });
+    return this.page.getByRole('button', { name: 'Sign Up', exact: true });
   }
 
+  /** Opens the COS product page (cos.io) in a new tab - pair with `waitForPopup`. */
   get learnMoreButton(): Locator {
     return this.page.getByRole('link', { name: 'Learn More', exact: true });
   }
 
-  get carouselButtons(): Locator {
-    return this.page.locator('[class="p-carousel-indicator-button"]');
+  /**
+   * The "What Others Are Saying" testimonials carousel. The home page has a second
+   * carousel (OSF integrations), whose indicator buttons and slides use the same
+   * labels, so everything below is scoped to this one.
+   */
+  get testimonialsCarousel(): Locator {
+    return this.page
+      .locator('section')
+      .filter({ has: this.page.getByRole('heading', { name: 'What Others Are Saying' }) })
+      .getByRole('region');
   }
 
-  get testimonial1Slide(): Locator {
-    return this.page.locator('div.p-carousel-item[aria-label="0"]');
+  /** Indicator button above slide `index` (0-based). Its accessible name is 1-based. */
+  testimonialButton(index: number): Locator {
+    return this.testimonialsCarousel.getByRole('button', { name: String(index + 1), exact: true });
   }
 
-  get testimonial2Slide(): Locator {
-    return this.page.locator('div.p-carousel-item[aria-label="1"]');
+  /**
+   * Testimonial slide `index` (0-based, its `aria-label`), matched only while it is the
+   * current slide: PrimeNG sets `aria-hidden="true"` on the others, which drops them
+   * from the accessibility tree, and its cloned edge slides have no `group` role.
+   */
+  testimonialSlide(index: number): Locator {
+    return this.testimonialsCarousel.getByRole('group', { name: String(index), exact: true });
   }
+}
 
-  get testimonial3Slide(): Locator {
-    return this.page.locator('div.p-carousel-item[aria-label="2"]');
+/** Port of `COSProductsPage` - the OSF product page on cos.io. */
+export class COSProductsPage extends BasePage {
+  get identity(): Locator {
+    return this.page.getByRole('link', { name: 'Take me to OSF' });
   }
 }

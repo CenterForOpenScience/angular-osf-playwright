@@ -32,6 +32,7 @@ on:
         type: choice
         options:
           - All
+          - Dashboard
           - Institutions
           - Login
           - MyPreprints
@@ -178,6 +179,7 @@ jobs:
         id: test_path
         run: |
           case "${{ needs.set_variables.outputs.service }}" in
+            Dashboard) echo "path=tests/dashboard.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Institutions) echo "path=tests/institutions.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Login) echo "path=tests/login.spec.ts" >> "$GITHUB_OUTPUT" ;;
             MyPreprints) echo "path=tests/myPreprints.spec.ts" >> "$GITHUB_OUTPUT" ;;
