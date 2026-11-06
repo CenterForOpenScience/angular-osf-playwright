@@ -130,7 +130,7 @@ tick it in **both** files.
 | 3 | Profile | `tests/test_profile.py` | `tests/profile.spec.ts` | [x] Migrated |
 | 4 | Search | `tests/test_search.py` | `tests/search.spec.ts` | [x] Migrated |
 | 5 | Navbar | `tests/test_navbar.py` | `tests/navbar.spec.ts` | [x] Migrated |
-| 6 | Dashboard | `tests/test_dashboard.py` | — | [ ] Not migrated |
+| 6 | Dashboard | `tests/test_dashboard.py` | `tests/dashboard.spec.ts` | [x] Migrated |
 | 7 | Collections | `tests/test_collections.py` | — | [ ] Not migrated |
 | 8 | Registration sidebar | `tests/test_registration_sidebar.py` | `tests/registrationSidebar.spec.ts` | [x] Migrated |
 | 9 | Preprints | `tests/test_preprints.py` | `tests/preprints.spec.ts` | [x] Migrated |
@@ -143,7 +143,7 @@ tick it in **both** files.
 | 16 | Registration user permissions | `tests/test_registration_user_permissions.py` | `tests/registrationUserPermissions.spec.ts` | [x] Migrated |
 | 17 | Registries | `tests/test_registries.py` | `tests/registries.spec.ts` | [x] Migrated |
 
-Progress: **12 / 17** sections migrated.
+Progress: **13 / 17** sections migrated.
 
 ## Notable differences from the Python suite
 
@@ -458,5 +458,25 @@ Progress: **12 / 17** sections migrated.
     "descending"/"ascending" date test names are kept as in Python. Downloads are
     checked through Playwright's download event, not `~/Downloads`.
   - The unused `files_list_page` fixture (My Registrations > View > Files) wasn't ported.
+
+- **Dashboard** (`tests/dashboard.spec.ts`) ports `test_dashboard.py` in full: 4 tests, the
+  same as pytest collects (the 3 Home Landing Page tests and `popular pages load`). The
+  `TestDashboardPage` and `TestProjectList` classes are fully commented out in Python, so
+  they weren't ported. Changes, verified live on uat1:
+  - The home page has two PrimeNG carousels (testimonials and OSF integrations) with the
+    same indicator labels and slide `aria-label`s. Python's unscoped selectors happened to
+    hit the testimonials one first, and `div.p-carousel-item[aria-label="0"]` also matched
+    PrimeNG's always-present cloned edge slide. `LandingPage.testimonialButton(i)` /
+    `testimonialSlide(i)` are scoped to the "What Others Are Saying" section and match a
+    slide only while it is current (role `group`, not `aria-hidden`), so "slide N is gone"
+    is a real check. `scroll_into_view` was dropped (Playwright scrolls on click).
+  - `learn more`: the cos.io tab is checked with Playwright's popup event. It doesn't wait
+    for cos.io's `load` event, which can take longer than the navigation timeout, so it
+    doesn't use `clickExpectingPopup`. `COSProductsPage`'s identity is the "Take me to OSF"
+    link by role.
+  - `popular pages load` is production only, as in Python, so it's skipped elsewhere and
+    hasn't been run. Python reused the previous page object (or crashed on the first item)
+    for an entry with an unknown type. Such an entry is now recorded as a failure and
+    skipped.
 
 ## Next steps

@@ -25,6 +25,7 @@ on:
         default: 'login.spec.ts'
         type: choice
         options:
+          - dashboard.spec.ts
           - institutions.spec.ts
           - login.spec.ts
           - myPreprints.spec.ts
