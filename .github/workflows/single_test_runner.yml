@@ -41,6 +41,7 @@ on:
           - projectFiles.spec.ts
           - projectAddons.spec.ts
           - projectAnalytics.spec.ts
+          - projectOverview.spec.ts
       browser:
         description: 'Browser'
         required: true

@@ -910,23 +910,38 @@ export async function updateRegistrationTitle(
 export async function getNodeIdByTitle(
   session: OsfSession,
   title: string
-): Promise<string | undefined> {
-  try {
-    const url = `/v2/nodes/?filter[title]=${encodeURIComponent(title)}`;
+): Promise<string | null> {
 
-    const response = await session.get(url);
+  let url: string | null =
+    `/v2/users/me/nodes/?filter[title]=${encodeURIComponent(title)}&page[size]=100`;
 
-    const data = response.data;
-
-    if (data && data.length > 0) {
-      return data[0].id;
+  while (url) {
+    const data: any = await session.get(url);
+    const match = (data?.data ?? []).find(
+      (node: any) => node.attributes.title.trim() === title,
+    );
+    if (match) {
+      return match.id;
     }
-
-    return undefined;
-  } catch (error) {
-    console.error(`Failed to get node by title "${title}":`, error);
-    throw error;
+    url = data?.links?.next ?? null;
   }
+  return null;
+  // try {
+  //   const url = `/v2/nodes/?filter[title]=${encodeURIComponent(title)}`;
+
+  //   const response = await session.get(url);
+
+  //   const data = response.data;
+
+  //   if (data && data.length > 0) {
+  //     return data[0].id;
+  //   }
+
+  //   return undefined;
+  // } catch (error) {
+  //   console.error(`Failed to get node by title "${title}":`, error);
+  //   throw error;
+  // }
 }
 
 /**

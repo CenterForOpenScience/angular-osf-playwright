@@ -63,6 +63,8 @@ type Fixtures = {
   defaultProjectWithAllMetadata: osfApi.OsfProject;
   defaultAddonsProject: osfApi.OsfProject;
   defaultProjectWithFile: osfApi.OsfProject;
+  defaultProjectWithFileGermany: osfApi.OsfProject;
+  defaultProjectWithFileCanada: osfApi.OsfProject;
 };
 
 function getSessionCookieName(): string {
@@ -443,6 +445,53 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     // but the code shown doesn't actually perform a delete. Add it here if that's expected:
     // await osfApi.deleteNode(session, node.id);
   },
+
+  defaultProjectWithFileGermany: async ({ session }, use) => {
+    /**
+     * Creates a new project through the api and returns it. Deletes the project at the end
+     * of the test run. If PREFERRED_NODE is set, returns the APIDetail of preferred node.
+     */
+    let node: osfApi.OsfProject;
+
+    if (settings.PREFERRED_NODE) {
+      node = await osfApi.getNode(session);
+    } else {
+      const nodeId = await osfApi.getNodeIdByTitle(session, 'Default OSF Test Project - Germany');
+      if (!nodeId) {
+        throw new Error('Could not find node with title "Default OSF Test Project - Germany"');
+      }
+      node = await osfApi.getNode(session, nodeId);
+    }
+
+    await use(node);
+    // teardown — the Python docstring says "Deletes the project at the end of the test run,"
+    // but the code shown doesn't actually perform a delete. Add it here if that's expected:
+    // await osfApi.deleteNode(session, node.id);
+  },
+
+  defaultProjectWithFileCanada: async ({ session }, use) => {
+    /**
+     * Creates a new project through the api and returns it. Deletes the project at the end
+     * of the test run. If PREFERRED_NODE is set, returns the APIDetail of preferred node.
+     */
+    let node: osfApi.OsfProject;
+
+    if (settings.PREFERRED_NODE) {
+      node = await osfApi.getNode(session);
+    } else {
+      const nodeId = await osfApi.getNodeIdByTitle(session, 'Default OSF Test Project - Canada');
+      if (!nodeId) {
+        throw new Error('Could not find node with title "Default OSF Test Project - Canada"');
+      }
+      node = await osfApi.getNode(session, nodeId);
+    }
+
+    await use(node);
+    // teardown — the Python docstring says "Deletes the project at the end of the test run,"
+    // but the code shown doesn't actually perform a delete. Add it here if that's expected:
+    // await osfApi.deleteNode(session, node.id);
+  },
+
 });
 
 export { expect };

@@ -13,6 +13,10 @@ export class ProjectDetailsPage extends GuidBasePage {
     readonly affiliationLinks: Locator;
     readonly authorLinks: Locator;
     readonly overviewTags: Locator;
+    readonly downloadButton: Locator;
+    readonly metadataDownload: Locator;
+    readonly viewOnlyLinksButton: Locator;
+
 
     constructor(page: Page, verify: boolean = false, guid: string) {
         super(page, verify, guid);
@@ -27,6 +31,10 @@ export class ProjectDetailsPage extends GuidBasePage {
         this.affiliationLinks = valueAfter('Affiliated Institutions').locator('a[href*="/institutions/"]');
         this.authorLinks = this.metadata.locator('osf-contributors-list a[data-test-contributor-name]');
         this.overviewTags = this.metadata.locator('osf-tags-list p-tag');
+        this.downloadButton = page.getByRole('button', { name: 'Download As Zip' });
+        this.metadataDownload = page.locator('.p-ripple.p-button.p-button-icon-only.p-button-secondary');
+        this.viewOnlyLinksButton = page.getByRole('button', { name: 'View only links' });
+
     }
 
     get url(): string {
