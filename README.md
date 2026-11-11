@@ -115,6 +115,7 @@ tests/
   institutions.spec.ts  # port of tests/test_institutions.py
   preprints.spec.ts     # port of tests/test_preprints.py
   myPreprints.spec.ts   # port of tests/test_my_preprints.py
+  collections.spec.ts   # port of tests/test_collections.py
 ```
 
 ## Migration status
@@ -131,7 +132,7 @@ tick it in **both** files.
 | 4 | Search | `tests/test_search.py` | `tests/search.spec.ts` | [x] Migrated |
 | 5 | Navbar | `tests/test_navbar.py` | `tests/navbar.spec.ts` | [x] Migrated |
 | 6 | Dashboard | `tests/test_dashboard.py` | `tests/dashboard.spec.ts` | [x] Migrated |
-| 7 | Collections | `tests/test_collections.py` | — | [ ] Not migrated |
+| 7 | Collections | `tests/test_collections.py` | `tests/collections.spec.ts` | [x] Migrated |
 | 8 | Registration sidebar | `tests/test_registration_sidebar.py` | `tests/registrationSidebar.spec.ts` | [x] Migrated |
 | 9 | Preprints | `tests/test_preprints.py` | `tests/preprints.spec.ts` | [x] Migrated |
 | 10 | Metadata | `tests/test_registration_metadata.py` | `tests/registrationMetadata.spec.ts` | [x] Migrated |
@@ -143,7 +144,7 @@ tick it in **both** files.
 | 16 | Registration user permissions | `tests/test_registration_user_permissions.py` | `tests/registrationUserPermissions.spec.ts` | [x] Migrated |
 | 17 | Registries | `tests/test_registries.py` | `tests/registries.spec.ts` | [x] Migrated |
 
-Progress: **13 / 17** sections migrated.
+Progress: **14 / 17** sections migrated.
 
 ## Notable differences from the Python suite
 
@@ -478,5 +479,36 @@ Progress: **13 / 17** sections migrated.
     hasn't been run. Python reused the previous page object (or crashed on the first item)
     for an entry with an unknown type. Such an entry is now recorded as a failure and
     skipped.
+
+- **Collections** (`tests/collections.spec.ts`) ports `test_collections.py` in full: 38 tests,
+  the same as pytest collects on uat1 (12 `TestCollectionSearch` tests +
+  `TestCollectionDiscoverPages.test_discover_page` per collection provider that allows
+  submissions, 26 on uat1, fetched at collection time with
+  `osfApi.getCollectionProvidersSync()`). `TestCollectionSubmission` (its only test is
+  commented out) and `TestCollectionModeration` (fully commented out) aren't collected and
+  weren't ported. Page objects are in `src/pages/CollectionsPage.ts`; the discover page
+  renders the same search component as `/search`, so `CollectionDiscoverPage` extends
+  `SearchPage` and reuses its filter/sort helpers. Changes, verified live on uat1:
+  - The discover page's identity is `osf-collections-discover`. Python's
+    `div[data-test-provider-branding]` and navbar-title branding are gone; the provider's
+    name is now checked in the page's `h1`. The `loading_indicator.here_then_gone()` wait
+    was dropped, per the migration rules.
+  - Collection metadata filters (Status, Program Area, and on uat1 "Collected Type",
+    "School Type", ...) are now generic accordion filters titled with the field name,
+    with the shared `any-of` multiselect. Python's `#status` / `#programArea` ids are gone.
+    Cards don't show those fields, so the status/program area filter tests check the
+    applied-filter chip ("Status: <option>") where Python looked for a `<span>` with that
+    text. uat1's `iafns` has neither filter (nor Funder), so those 5 tests skip there, as
+    in Python. The 4 Status/Program Area checks were verified on uat1's `ibdgcb` (Status)
+    and `uremethods` (Program Area). Those options have no "(N)" count, so
+    `CollectionDiscoverPage` overrides `getRecordName` to make the count optional, as
+    Python's `get_record_name` did. `SearchPage`'s version waits for a count and would
+    time out. test.osf.io (`ibdgc`) wasn't reachable during the port, so they haven't run
+    there.
+  - `skip_test_if_filter_not_present` waited 25s for the filter. The port waits for the
+    filter panel to render first and then for the filter, so a missing filter isn't
+    confused with one that hasn't rendered yet.
+  - The search test's `settings.DOMAIN in ('test4')` was a substring check on a string,
+    so `test` searched for "Test" too; kept as-is.
 
 ## Next steps

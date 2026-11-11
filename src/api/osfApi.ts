@@ -1738,6 +1738,31 @@ export function getRegistrationProvidersSync(): RegistrationProvider[] {
   );
 }
 
+/** The fields of a collection provider that the collections spec's per-provider test uses. */
+export interface CollectionProvider {
+  id: string;
+  name: string;
+}
+
+/**
+ * Synchronous port of `TestCollectionDiscoverPages.providers()`, to build one test per
+ * collection provider while Playwright collects tests. Like Python, it keeps only the
+ * providers with `allow_submissions` set - turning that off in the admin app is how old
+ * testing collections are left out. `/v2/providers/collections/` is public and isn't
+ * paginated (the Python call read only `data` too).
+ */
+export function getCollectionProvidersSync(): CollectionProvider[] {
+  return getPublicListSync(
+    'OSF_COLLECTION_PROVIDERS',
+    '/v2/providers/collections/',
+    'collection provider list',
+    (data) =>
+      data
+        .filter((provider) => provider.attributes.allow_submissions)
+        .map((provider) => ({ id: provider.id, name: provider.attributes.name }))
+  );
+}
+
 /**
  * Port of `get_registration_schemas_for_provider` - `[name, id]` pairs of the schemas a
  * registration provider allows.
