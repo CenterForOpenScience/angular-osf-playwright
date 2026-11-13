@@ -227,6 +227,10 @@ export class SettingsNotificationsPage extends UserSettingsPage {
     return `${settings.OSF_HOME}/settings/notifications`;
   }
 
+  get notificationsSection(): Locator {
+    return this.page.getByRole('heading', { name: 'Configure Notification Preferences', exact: true });
+  }
+
   get emailPreferencesHeader(): Locator {
     return this.page.getByRole('heading', { name: 'Configure Email Preferences', exact: true });
   }

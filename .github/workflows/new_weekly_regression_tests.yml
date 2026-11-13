@@ -41,6 +41,7 @@ on:
           - Preprints
           - Profile
           - RegistrationMetadata
+          - RegistrationModeration
           - RegistrationSidebar
           - RegistrationUserPermissions
           - Registries
@@ -189,6 +190,7 @@ jobs:
             Preprints) echo "path=tests/preprints.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Profile) echo "path=tests/profile.spec.ts" >> "$GITHUB_OUTPUT" ;;
             RegistrationMetadata) echo "path=tests/registrationMetadata.spec.ts" >> "$GITHUB_OUTPUT" ;;
+            RegistrationModeration) echo "path=tests/registrationModeration.spec.ts" >> "$GITHUB_OUTPUT" ;;
             RegistrationSidebar) echo "path=tests/registrationSidebar.spec.ts" >> "$GITHUB_OUTPUT" ;;
             RegistrationUserPermissions) echo "path=tests/registrationUserPermissions.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Registries) echo "path=tests/registries.spec.ts" >> "$GITHUB_OUTPUT" ;;

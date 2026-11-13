@@ -18,6 +18,7 @@
     "test:preprints": "playwright test tests/preprints.spec.ts",
     "test:my-preprints": "playwright test tests/myPreprints.spec.ts",
     "test:registration-metadata": "playwright test tests/registrationMetadata.spec.ts",
+    "test:registration-moderation": "playwright test tests/registrationModeration.spec.ts",
     "test:registration-sidebar": "playwright test tests/registrationSidebar.spec.ts",
     "test:registration-user-permissions": "playwright test tests/registrationUserPermissions.spec.ts",
     "test:registries": "playwright test tests/registries.spec.ts",
