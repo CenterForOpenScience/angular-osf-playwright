@@ -140,11 +140,11 @@ tick it in **both** files.
 | 12 | My projects | `tests/test_my_projects.py` | — | [ ] Not migrated |
 | 13 | My registrations | `tests/test_my_registrations.py` | — | [ ] Not migrated |
 | 14 | My preprints | `tests/test_my_preprints.py` | `tests/myPreprints.spec.ts` | [x] Migrated |
-| 15 | Registration moderation | `tests/test_registration_moderation.py` | — | [ ] Not migrated |
+| 15 | Registration moderation | `tests/test_registration_moderation.py` | `tests/registrationModeration.spec.ts` | [x] Migrated |
 | 16 | Registration user permissions | `tests/test_registration_user_permissions.py` | `tests/registrationUserPermissions.spec.ts` | [x] Migrated |
 | 17 | Registries | `tests/test_registries.py` | `tests/registries.spec.ts` | [x] Migrated |
 
-Progress: **14 / 17** sections migrated.
+Progress: **15 / 17** sections migrated.
 
 ## Notable differences from the Python suite
 
@@ -510,5 +510,52 @@ Progress: **14 / 17** sections migrated.
     confused with one that hasn't rendered yet.
   - The search test's `settings.DOMAIN in ('test4')` was a substring check on a string,
     so `test` searched for "Test" too; kept as-is.
+
+- **Registration moderation** (`tests/registrationModeration.spec.ts`) ports
+  `test_registration_moderation.py` in full: 38 tests, the same as pytest collects (3
+  moderator tests, 12 Pending and 16 Submitted sorting tests, 7 notification settings
+  tests), all on the `egap` registry as in Python. Page objects (`ModeratorDashboardPage`,
+  `ModeratorSettingsPage`) are in `src/pages/RegistriesPage.ts`. Changes, verified live on
+  uat1:
+  - The add -> edit -> remove moderator tests and the Daily -> Never -> Instant
+    notification tests depend on each other's state, so those two `describe`s use
+    `mode: 'default'` (in order on one worker, without skipping the rest after a failure,
+    as pytest did).
+  - The sort select, permission select and notification selects have untranslated i18n
+    keys as accessible names (`moderation.sortOption.newest`, ...), so options are
+    matched by visible text. The notification selects' `aria-label` hides their
+    `<label for>`, so `getByLabel` can't find them; they're located by id, as in Python.
+  - Lists are read after their own API response (`/providers/registrations/egap/...`
+    with `sort=`, `/moderators/`), and permission/notification changes wait for the
+    save request, instead of `wait_until_page_ready`. Each card's date line comes from a
+    separate `/registrations/<id>/actions/` request fired after the list renders, so
+    `waitForSubmissions` also waits for those before dates are read. Re-picking the
+    default "Date: newest to oldest" sends no request, so that case doesn't wait for one.
+  - The dashboard redirects to `/moderation/pending` and loads the Pending list on its
+    own, so `open()` waits for that load, and list waits match the request the click
+    sent (a response-based wait used to pick up the still-in-flight Pending list after
+    switching to Submitted). uat1 sometimes fails a card's `/actions/` request
+    (`net::ERR_FAILED`); that counts as settled, and the card shows no date.
+  - Date checks fail if no card showed a readable date, rather than passing on an empty
+    list as Python did.
+  - Clicking the toggle that's already pressed (Public, Pending) unpresses it and empties
+    the list, so the tab's default toggle is never clicked, as in Python.
+  - Sorting tests with no submissions are now `test.skip`ped (Python printed "No ...
+    found" and passed). On uat1 that's Pending Withdrawal and Rejected (8 tests).
+    Registrations without review actions show no date; their cards are left out of the
+    date check, as in Python.
+  - Title order is checked with an ICU collator that ignores case, spaces and punctuation,
+    which is how the API sorts ("[Test] EGAP Test 3" sorts as "testegaptest3"). Python's
+    lower-cased code-point comparison disagrees with the API on uat1's data, but never
+    failed because of the title-reader bug below.
+  - Python bugs fixed rather than carried over: `get_titles_from_page` used an absolute
+    XPath inside the card loop, so it returned the first card's title for every card
+    (every title sort check passed vacuously); `get_all_dates` "paginated" by clicking the
+    first page-number button; four "oldest to newest" tests (pending, pending updates,
+    submitted, withdrawn) asserted the same order as "newest to oldest"; and
+    `test_user_settings_link` re-opened `/settings/notifications` itself before asserting
+    the URL, so it passed whatever the link did.
+  - The settings page heading is "Configure reviews notification preferences" in the DOM
+    (CSS capitalizes it on screen).
 
 ## Next steps

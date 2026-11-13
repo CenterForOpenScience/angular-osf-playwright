@@ -34,6 +34,7 @@ on:
           - preprints.spec.ts
           - profile.spec.ts
           - registrationMetadata.spec.ts
+          - registrationModeration.spec.ts
           - registrationSidebar.spec.ts
           - registrationUserPermissions.spec.ts
           - registries.spec.ts
