@@ -199,6 +199,24 @@ export class DraftRegistrationReviewPage extends BaseRegistrationDraftPage {
     return this.page.locator('[data-test-tags-widget-tag-input]');
   }
 
+  /** The Open-Ended template's narrative summary response. */
+  get summary(): Locator {
+    return this.page.locator('osf-registration-blocks-data p.preserve-whitespace');
+  }
+
+  /**
+   * Port of `MyRegistrationsPage.assert_required_error_under_field`: the "The field is
+   * required." alert in the block headed by `field` (an `h4`). Each block is the `div`
+   * whose direct child is that heading.
+   */
+  requiredError(field: string): Locator {
+    return this.page
+      .locator('osf-review div')
+      .filter({ has: this.page.locator(':scope > h4', { hasText: exactText(field) }) })
+      .getByRole('alert')
+      .filter({ hasText: 'The field is required.' });
+  }
+
   get registerButton(): Locator {
     return this.page.getByRole('button', { name: 'Register', exact: true });
   }
@@ -210,6 +228,86 @@ export class DraftRegistrationReviewPage extends BaseRegistrationDraftPage {
 
   get submitButton(): Locator {
     return this.page.getByRole('dialog').getByRole('button', { name: 'Submit', exact: true });
+  }
+}
+
+/**
+ * Port of `RegistrationJustificationForm` - the Justification and Summary steps of a
+ * registration update (`/registries/revisions/<schema response id>/justification`, then
+ * `/1`). Both steps live in `osf-justification`.
+ */
+export class RegistrationJustificationPage extends BasePage {
+  get identity(): Locator {
+    return this.page.locator('osf-justification-step');
+  }
+
+  /** The textarea has no label; its placeholder is the only user-facing name. */
+  get justificationTextbox(): Locator {
+    return this.page.getByPlaceholder(/Explain the updates made to this registration/);
+  }
+
+  get summaryHeading(): Locator {
+    return this.page.getByRole('heading', { name: 'Summary', level: 2, exact: true });
+  }
+
+  get summaryTextbox(): Locator {
+    return this.page.getByLabel(/Provide a narrative summary of what is contained in this registration/);
+  }
+
+  get nextButton(): Locator {
+    return this.page.getByRole('button', { name: 'Next', exact: true });
+  }
+
+  /** Port of `perform_justification_update`. */
+  async performJustificationUpdate(justification: string): Promise<void> {
+    await this.justificationTextbox.fill(justification);
+    await this.nextButton.click();
+  }
+
+  /** Port of `perform_summary_update`. */
+  async performSummaryUpdate(summary: string): Promise<void> {
+    await expect(this.summaryHeading).toBeVisible();
+    await this.summaryTextbox.fill(summary);
+    await this.nextButton.click();
+  }
+}
+
+/** Port of `JustificationReviewForm` - the update's Review step (`.../review`). */
+export class JustificationReviewPage extends BasePage {
+  get identity(): Locator {
+    return this.page.locator('osf-justification-review');
+  }
+
+  /** Port of `summary_justification_review`. */
+  get summaryReview(): Locator {
+    return this.identity.locator('osf-registration-blocks-data p.preserve-whitespace');
+  }
+
+  get submitChangesButton(): Locator {
+    return this.page.getByRole('button', { name: 'Submit Changes', exact: true });
+  }
+
+  get acceptChangesButton(): Locator {
+    return this.page.getByRole('button', { name: 'Accept Changes', exact: true });
+  }
+
+  get deleteDraftUpdateButton(): Locator {
+    return this.page.getByRole('button', { name: 'Delete Draft Update', exact: true });
+  }
+
+  /** Port of `confirm_delete_draft_update_window` + its Delete button. */
+  get confirmDeleteDialog(): Locator {
+    return this.page.getByRole('alertdialog', { name: 'Delete this draft update' });
+  }
+
+  get confirmDeleteButton(): Locator {
+    return this.confirmDeleteDialog.getByRole('button', { name: 'Delete', exact: true });
+  }
+
+  /** Port of `confirm_delete_draft_update`. */
+  async confirmDeleteDraftUpdate(): Promise<void> {
+    await expect(this.confirmDeleteDialog).toBeVisible();
+    await this.confirmDeleteButton.click();
   }
 }
 

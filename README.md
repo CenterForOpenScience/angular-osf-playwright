@@ -115,6 +115,7 @@ tests/
   institutions.spec.ts  # port of tests/test_institutions.py
   preprints.spec.ts     # port of tests/test_preprints.py
   myPreprints.spec.ts   # port of tests/test_my_preprints.py
+  myRegistrations.spec.ts # port of tests/test_my_registrations.py
   collections.spec.ts   # port of tests/test_collections.py
   signUp.spec.ts        # port of tests/test_sign_up_user.py
 ```
@@ -139,14 +140,14 @@ tick it in **both** files.
 | 10 | Metadata | `tests/test_registration_metadata.py` | `tests/registrationMetadata.spec.ts` | [x] Migrated |
 | 11 | Institutions | `tests/test_institutions.py` | `tests/institutions.spec.ts` | [x] Migrated |
 | 12 | My projects | `tests/test_my_projects.py` | — | [ ] Not migrated |
-| 13 | My registrations | `tests/test_my_registrations.py` | — | [ ] Not migrated |
+| 13 | My registrations | `tests/test_my_registrations.py` | `tests/myRegistrations.spec.ts` | [x] Migrated |
 | 14 | My preprints | `tests/test_my_preprints.py` | `tests/myPreprints.spec.ts` | [x] Migrated |
 | 15 | Registration moderation | `tests/test_registration_moderation.py` | `tests/registrationModeration.spec.ts` | [x] Migrated |
 | 16 | Registration user permissions | `tests/test_registration_user_permissions.py` | `tests/registrationUserPermissions.spec.ts` | [x] Migrated |
 | 17 | Registries | `tests/test_registries.py` | `tests/registries.spec.ts` | [x] Migrated |
 | 18 | Sign up | `tests/test_sign_up_user.py` | `tests/signUp.spec.ts` | [x] Migrated |
 
-Progress: **16 / 18** sections migrated.
+Progress: **17 / 18** sections migrated.
 
 ## Notable differences from the Python suite
 
@@ -575,5 +576,41 @@ Progress: **16 / 18** sections migrated.
     is `generatePassword()` in the spec: 8 characters with at least one of each class.
   - The form locators were checked live on uat1. The reCAPTCHA click and the actual sign-up
     weren't run during the port (it creates a real account), so the full flow is unverified.
+- **My registrations** (`tests/myRegistrations.spec.ts`) ports `test_my_registrations.py`
+  in full: 8 tests, the same count pytest collects (2 `TestMyRegistrationsPageEmpty`, 2
+  `TestMyRegistrationsUserTwo`, 2 `TestMyRegistrationsDraftTab`, 2
+  `TestRegistrationsVersioning`). Each Python class is a `describe`; the versioning tests
+  update the same registration, so that `describe` uses `mode: 'default'` and skips on
+  production, as in Python.
+  - `MyRegistrationsPage` (`src/pages/BrowsePages.ts`) locates the Drafts/Submitted tabs
+    and their panels by role (each `tabpanel` is named after its tab). The Drafts panel
+    loads its cards only when its tab is clicked (`?tab=draft` lands on Submitted), so
+    `openDraftsTab()`/`openSubmittedTab()` click the tab and wait for a card or the empty
+    message.
+  - The update flow's pages are `RegistrationJustificationPage`/`JustificationReviewPage`
+    in `src/pages/RegistriesPage.ts`. Their old identities (`data-test-link-back-to-registration`,
+    `#JustificationPageLabel`) are gone; `osf-justification-step`/`osf-justification-review`
+    are used. The Delete Draft Update confirmation is an `alertdialog`.
+    `RegistrationPage` gained `narrativeSummary`, `updatesDropdown`, `updateButton` and
+    `waitForOverview()`; `DraftRegistrationReviewPage` gained `summary` and `requiredError()`.
+  - Python bugs fixed rather than carried over: `test_drafts_tab`'s `draft_registration_title`
+    was the Drafts tab itself, so it never opened a draft (now the first draft's Edit
+    button, which opens its metadata step); `public_registration_title`
+    (`button.p-button-primary`) first matched the header's "Add a Registration" button
+    (now the first card's View button); and both Draft Tab tests clicked the first Review
+    button on the tab, whatever draft that was. They now pick the newest card with the
+    draft's title and check the Review URL has the draft's id.
+  - `test_draft_registration_without_project_review_button` checks the draft shows its
+    project's description. Python asserted 'QA Selenium Testing', the description of the
+    existing "Default OSF Test Project" its fixture reused; the Playwright fixture creates
+    its own project ('AQA test description').
+  - Drafts are now deleted after each Draft Tab test (Python left `create_single_draft_registration`'s
+    draft behind). A versioning test that stops before submitting or deleting its update
+    deletes the in-progress update through the API (Python had unused helpers for this),
+    since a leftover update blocks the next "Update".
+  - Verified on uat1 (6 of 8 pass). `My Registrations Page Empty` (2 tests) couldn't be
+    run: USER_TWO's login in the local `.env` is rejected. The versioning workflow test
+    submits a real update to "Angular Selenium Test Registration [PUBLIC] (Versioning)"
+    every run, as Python did.
 
 ## Next steps

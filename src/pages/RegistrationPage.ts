@@ -43,6 +43,29 @@ export class RegistrationPage extends BasePage {
     return this.page.locator('h1[data-test-page-heading]');
   }
 
+  /** Port of `narrative_summary` - the Open-Ended template's summary response. */
+  get narrativeSummary(): Locator {
+    return this.page.locator('.preserve-whitespace');
+  }
+
+  /** Port of `updates_dropdown` - the "Updates" accordion header (role=button). */
+  get updatesDropdown(): Locator {
+    return this.page.getByRole('button', { name: 'Updates', exact: true });
+  }
+
+  /** Port of `update_registration_button` - starts a new update (the revisions are "Update N"). */
+  get updateButton(): Locator {
+    return this.page.getByRole('button', { name: 'Update', exact: true });
+  }
+
+  /** Port of `wait_for_registration_overview_page` (Python waited for the "<guid> / overview" breadcrumb). */
+  async waitForOverview(guid: string): Promise<void> {
+    await expect(this.page).toHaveURL(new RegExp(`/${guid}/overview`), {
+      timeout: settings.LONG_TIMEOUT_MS,
+    });
+    await this.verify(settings.LONG_TIMEOUT_MS);
+  }
+
   get registeredDate(): Locator {
     return this.page.locator('[data-test-registry-overview-metadata-date-registered]');
   }

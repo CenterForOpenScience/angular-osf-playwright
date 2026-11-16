@@ -17,6 +17,7 @@
     "test:institutions": "playwright test tests/institutions.spec.ts",
     "test:preprints": "playwright test tests/preprints.spec.ts",
     "test:my-preprints": "playwright test tests/myPreprints.spec.ts",
+    "test:my-registrations": "playwright test tests/myRegistrations.spec.ts",
     "test:registration-metadata": "playwright test tests/registrationMetadata.spec.ts",
     "test:registration-moderation": "playwright test tests/registrationModeration.spec.ts",
     "test:registration-sidebar": "playwright test tests/registrationSidebar.spec.ts",
