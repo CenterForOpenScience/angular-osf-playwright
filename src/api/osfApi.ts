@@ -1803,6 +1803,57 @@ export async function deleteDraftRegistration(session: OsfSession, draftId: stri
   await session.delete(`/v2/draft_registrations/${draftId}/`);
 }
 
+/** Port of `update_draft_registration_subjects`. */
+export async function updateDraftRegistrationSubjects(
+  session: OsfSession,
+  draftId: string,
+  subjectIds: string[]
+): Promise<void> {
+  await session.put(`/v2/draft_registrations/${draftId}/relationships/subjects/`, {
+    data: subjectIds.map((id) => ({ type: 'subjects', id })),
+  });
+}
+
+/**
+ * Port of `create_draft_registration_with_summary_and_subject` - a draft registration of
+ * `nodeId` with the Open-Ended `summary` response and `subjectIds` set. Returns the
+ * draft's id (Python returned the whole response).
+ */
+export async function createDraftRegistrationWithSummaryAndSubject(
+  session: OsfSession,
+  {
+    nodeId,
+    schemaId,
+    summary,
+    subjectIds = [],
+  }: { nodeId: string; schemaId: string; summary?: string; subjectIds?: string[] }
+): Promise<string> {
+  const data = await session.post(`/v2/nodes/${nodeId}/draft_registrations/`, {
+    data: {
+      type: 'draft_registrations',
+      ...(summary
+        ? { attributes: { registration_responses: { summary, uploader: [] } } }
+        : {}),
+      relationships: {
+        registration_schema: { data: { id: schemaId, type: 'registration-schemas' } },
+      },
+    },
+  });
+  const draftId: string = data.data.id;
+  if (subjectIds.length) {
+    await updateDraftRegistrationSubjects(session, draftId, subjectIds);
+  }
+  return draftId;
+}
+
+/** Port of `delete_registration_version_draft` - deletes an in-progress registration update. */
+export async function deleteRegistrationVersionDraft(
+  session: OsfSession,
+  schemaResponseId: string
+): Promise<void> {
+  await session.delete(`/v2/schema_responses/${schemaResponseId}/`);
+}
+
 /** Port of `delete_project` - deletes `guid` only if it is one of the session user's nodes. */
 export async function deleteProject(session: OsfSession, guid: string): Promise<void> {
   const owner = await currentUser(session);
