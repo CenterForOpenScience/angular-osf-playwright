@@ -39,6 +39,7 @@ on:
           - registrationUserPermissions.spec.ts
           - registries.spec.ts
           - search.spec.ts
+          - signUp.spec.ts
           - user.spec.ts
           - projectFiles.spec.ts
           - projectAddons.spec.ts

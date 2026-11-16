@@ -46,6 +46,7 @@ on:
           - RegistrationUserPermissions
           - Registries
           - Search
+          - SignUp
           - User
       browser:
         description: 'Browser'
@@ -195,6 +196,7 @@ jobs:
             RegistrationUserPermissions) echo "path=tests/registrationUserPermissions.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Registries) echo "path=tests/registries.spec.ts" >> "$GITHUB_OUTPUT" ;;
             Search) echo "path=tests/search.spec.ts" >> "$GITHUB_OUTPUT" ;;
+            SignUp) echo "path=tests/signUp.spec.ts" >> "$GITHUB_OUTPUT" ;;
             User) echo "path=tests/user.spec.ts" >> "$GITHUB_OUTPUT" ;;
             *) echo "path=tests/" >> "$GITHUB_OUTPUT" ;;
           esac

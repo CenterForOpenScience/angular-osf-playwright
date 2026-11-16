@@ -116,6 +116,7 @@ tests/
   preprints.spec.ts     # port of tests/test_preprints.py
   myPreprints.spec.ts   # port of tests/test_my_preprints.py
   collections.spec.ts   # port of tests/test_collections.py
+  signUp.spec.ts        # port of tests/test_sign_up_user.py
 ```
 
 ## Migration status
@@ -143,8 +144,9 @@ tick it in **both** files.
 | 15 | Registration moderation | `tests/test_registration_moderation.py` | `tests/registrationModeration.spec.ts` | [x] Migrated |
 | 16 | Registration user permissions | `tests/test_registration_user_permissions.py` | `tests/registrationUserPermissions.spec.ts` | [x] Migrated |
 | 17 | Registries | `tests/test_registries.py` | `tests/registries.spec.ts` | [x] Migrated |
+| 18 | Sign up | `tests/test_sign_up_user.py` | `tests/signUp.spec.ts` | [x] Migrated |
 
-Progress: **15 / 17** sections migrated.
+Progress: **16 / 18** sections migrated.
 
 ## Notable differences from the Python suite
 
@@ -557,5 +559,21 @@ Progress: **15 / 17** sections migrated.
     the URL, so it passed whatever the link did.
   - The settings page heading is "Configure reviews notification preferences" in the DOM
     (CSS capitalizes it on screen).
+- **Sign up** (`tests/signUp.spec.ts`) ports `test_sign_up_user.py` in full: 1 test, the
+  same count pytest collects (`TestRegisterPage::test_create_user`, inherited from
+  `tests/generic.py`'s `CreateUserMixin`).
+  - It skips on production and on `test` (real reCAPTCHA there), as in Python.
+  - The `SignUpForm` component is folded into `RegisterPage` (`src/pages/RegisterPage.ts`).
+    Every field's `<label>` is `for=`-linked to its input, so the fields (including Given
+    Name/Family Name, which Python found with an inline XPath in the test) use `getByLabel`.
+    The Terms of Use checkbox, Sign Up button and success heading use `getByRole`.
+  - The reCAPTCHA checkbox is reached through `frameLocator('iframe[title="reCAPTCHA"]')`
+    and clicked only if `aria-checked` is "false", as in Python. Python's `sleep(2)` after
+    it isn't ported: the Sign Up button stays disabled until the form (including the
+    reCAPTCHA control) is valid, and Playwright's click waits for it to be enabled.
+  - `fake.password(length=8, special_chars=..., digits=..., upper_case=..., lower_case=...)`
+    is `generatePassword()` in the spec: 8 characters with at least one of each class.
+  - The form locators were checked live on uat1. The reCAPTCHA click and the actual sign-up
+    weren't run during the port (it creates a real account), so the full flow is unverified.
 
 ## Next steps
