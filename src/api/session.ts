@@ -90,7 +90,7 @@ export async function createSession(
       'Content-Type': 'application/vnd.api+json',
       Accept: 'application/vnd.api+json',
       Authorization: `Basic ${basicAuth}`,
-      ...settings.QA_HEADERS,
+      ...settings.RL_BYPASS_HEADERS,
     },
   });
 
@@ -107,7 +107,7 @@ export async function createAddonSession(): Promise<OsfSession> {
       'Content-Type': 'application/vnd.api+json',
       Accept: 'application/vnd.api+json',
       Authorization: `Bearer ${settings.ADDON_API_TOKEN}`,
-      ...settings.QA_HEADERS,
+      ...settings.RL_BYPASS_HEADERS,
     },
   });
 

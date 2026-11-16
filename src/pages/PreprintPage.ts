@@ -813,7 +813,7 @@ export class MyPreprintsPage extends BasePage {
       // This page route takes precedence over the context's QA-header route (see
       // src/fixtures), so the header has to be added here too.
       const response = await route.fetch({
-        headers: { ...route.request().headers(), ...settings.QA_HEADERS },
+        headers: { ...route.request().headers(), ...settings.RL_BYPASS_HEADERS },
       });
       const data = await response.json();
       titles = (data.data as any[]).map((preprint) => preprint.attributes.title);

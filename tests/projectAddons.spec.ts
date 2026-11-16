@@ -30,6 +30,7 @@ async function fetchAddonNames(url: string): Promise<string[]> {
         extraHTTPHeaders: {
             Accept: 'application/vnd.api+json',
             Authorization: `Bearer ${settings.ADDON_API_TOKEN}`,
+            ...settings.RL_BYPASS_HEADERS,
         },
     });
     try {
