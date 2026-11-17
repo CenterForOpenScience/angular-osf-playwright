@@ -1066,7 +1066,7 @@ function fetchPublicListSync(path: string): { data?: any[]; error?: string } {
     '.then((d) => process.stdout.write(JSON.stringify(d.data)))' +
     '.catch((e) => { process.stderr.write(String(e)); process.exit(1); });';
   try {
-    const output = execFileSync(process.execPath, ['-e', script, url, JSON.stringify(settings.QA_HEADERS)], {
+    const output = execFileSync(process.execPath, ['-e', script, url, JSON.stringify(settings.RL_BYPASS_HEADERS)], {
       encoding: 'utf-8',
       timeout: 300000,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -1090,7 +1090,7 @@ export async function waitForApiThrottleToClear(maxWaitMs = 180000): Promise<voi
   const deadline = Date.now() + maxWaitMs;
   for (;;) {
     const response = await fetch(`${settings.API_DOMAIN}/v2/status/`, {
-      headers: { Accept: 'application/vnd.api+json', ...settings.QA_HEADERS },
+      headers: { Accept: 'application/vnd.api+json', ...settings.RL_BYPASS_HEADERS },
     });
     if (response.status !== 429) return;
     const body = await response.text();

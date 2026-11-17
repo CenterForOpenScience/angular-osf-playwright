@@ -16,9 +16,10 @@ npx playwright install
 cp .env.example .env   # then fill in credentials
 ```
 
-Set `COS_QA_TOKEN` (in `.env` locally, as a repo secret in CI) to send it as an
-`X-COS-QA-Token` header on every request to OSF hosts, so the backend can exempt test
-traffic from API throttling (429s). Without it, no header is sent.
+Set `RL_BYPASS_TOKEN` (in `.env` locally, as a repo secret in CI) to send it as an
+`X-Bypass-RL` header on every request to OSF hosts (browser traffic and API setup
+calls), so the WAF exempts test traffic from rate limiting (429s). Without it, no
+header is sent. Never commit the token value.
 
 ## Running tests
 

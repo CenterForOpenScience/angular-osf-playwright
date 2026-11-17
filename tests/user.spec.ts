@@ -944,7 +944,7 @@ test.describe('User Personal Access Tokens', () => {
     try {
       const nodeUrl = `${settings.API_DOMAIN}/v2/nodes/${defaultProject.id}`;
       const response = await fetch(nodeUrl, {
-        headers: { Authorization: `Bearer ${privateTokenId}`, ...settings.QA_HEADERS },
+        headers: { Authorization: `Bearer ${privateTokenId}`, ...settings.RL_BYPASS_HEADERS },
       });
       expect(response.status).toBe(200);
       const body = await response.json();
@@ -1031,7 +1031,7 @@ test.describe('User Personal Access Tokens', () => {
       const currentUser = await osfApi.currentUser(session);
       const userUrl = `${settings.API_DOMAIN}/v2/users/${currentUser.id}/settings/emails/`;
       const response = await fetch(userUrl, {
-        headers: { Authorization: `Bearer ${privateTokenId}`, ...settings.QA_HEADERS },
+        headers: { Authorization: `Bearer ${privateTokenId}`, ...settings.RL_BYPASS_HEADERS },
       });
       expect(response.status).toBe(200);
       const body = await response.json();

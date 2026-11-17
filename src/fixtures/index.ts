@@ -75,15 +75,15 @@ function getSessionCookieName(): string {
 }
 
 export const test = base.extend<Fixtures, WorkerFixtures>({
-  // Adds QA_HEADERS to the browser's requests to OSF hosts. A route rather than
+  // Adds RL_BYPASS_HEADERS to the browser's requests to OSF hosts. A route rather than
   // `extraHTTPHeaders`: those go to every origin (leaking the token to third parties)
   // and, being added before the CORS check, would force a preflight on every
   // cross-origin API call the app makes.
   context: async ({ context }, use) => {
-    if (settings.COS_QA_TOKEN) {
+    if (settings.RL_BYPASS_TOKEN) {
       await context.route(
-        (url) => settings.QA_HEADER_ORIGINS.includes(url.origin),
-        (route) => route.fallback({ headers: { ...route.request().headers(), ...settings.QA_HEADERS } })
+        (url) => settings.RL_BYPASS_HEADER_ORIGINS.includes(url.origin),
+        (route) => route.fallback({ headers: { ...route.request().headers(), ...settings.RL_BYPASS_HEADERS } })
       );
     }
     await use(context);
