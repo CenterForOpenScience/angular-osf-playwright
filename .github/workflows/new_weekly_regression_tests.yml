@@ -148,7 +148,7 @@ jobs:
           fi
 
   regression_test:
-    name: Regression Tests (${{ matrix.browser }})
+    name: Regression Tests (${{ matrix.browser }}, shard ${{ matrix.shard }}/2)
     needs: [set_variables, set_matrix]
     runs-on: ubuntu-latest
     strategy:
@@ -156,6 +156,11 @@ jobs:
       max-parallel: 1 # run in series, mirrors the Python suite's BrowserStack concurrency limit
       matrix:
         browser: ${{ fromJson(needs.set_matrix.outputs.matrix) }}
+        # GitHub-hosted jobs are capped at 6h each, and the full suite takes longer
+        # than that. Splitting it into shards gives each one its own 6h limit; with
+        # max-parallel: 1 they still run one at a time against the test env.
+        shard: [1, 2]
+    timeout-minutes: 360
     steps:
       - name: Git checkout
         uses: actions/checkout@v4
@@ -206,7 +211,9 @@ jobs:
       - name: Run regression tests
         env:
           TEST_ENV: ${{ needs.set_variables.outputs.test_env }}
-        run: npx playwright test "${{ steps.test_path.outputs.path }}" --project=${{ matrix.browser }}
+          # Turns on the blob reporter (see playwright.config.ts) for the merge_reports job.
+          BLOB_REPORT_NAME: ${{ matrix.browser }}-shard${{ matrix.shard }}
+        run: npx playwright test "${{ steps.test_path.outputs.path }}" --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/2
 
       - name: Write failed tests summary
         if: always()
@@ -217,16 +224,24 @@ jobs:
         id: upload_report
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-${{ matrix.browser }}
+          name: playwright-report-${{ matrix.browser }}-shard${{ matrix.shard }}
           path: playwright-report/
           retention-days: 7
+
+      - name: Upload blob report for merging
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: blob-report-${{ matrix.browser }}-shard${{ matrix.shard }}
+          path: blob-report/
+          retention-days: 1
 
       - name: Upload test results (traces/videos/screenshots)
         if: failure()
         id: upload_results
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-${{ matrix.browser }}
+          name: test-results-${{ matrix.browser }}-shard${{ matrix.shard }}
           path: test-results/
           retention-days: 7
 
@@ -234,7 +249,7 @@ jobs:
         if: always()
         run: |
           {
-            echo "### 📊 Reports (${{ matrix.browser }})"
+            echo "### 📊 Reports (${{ matrix.browser }}, shard ${{ matrix.shard }}/2)"
             echo "- [Playwright HTML report](${{ steps.upload_report.outputs.artifact-url }}) - unzip, then run \`npx playwright show-report <folder>\` for the full report with pass/fail per test."
             if [ -n "${{ steps.upload_results.outputs.artifact-url }}" ]; then
               echo "- [Raw test results / traces / videos](${{ steps.upload_results.outputs.artifact-url }}) - unzip, then run \`npx playwright show-trace <path-to-a-trace.zip>\` to open the trace viewer for one failed test directly."
@@ -248,7 +263,7 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": ":x: *Weekly Regression Tests FAILED* on `${{ matrix.browser }}`",
+              "text": ":x: *Weekly Regression Tests FAILED* on `${{ matrix.browser }}` (shard ${{ matrix.shard }}/2)",
               "attachments": [
                 {
                   "color": "danger",
@@ -256,3 +271,68 @@ jobs:
                 }
               ]
             }
+
+  # Combines every shard's blob report into one HTML report. Runs even when shards
+  # fail, and warns in the summary if a shard's blob report is missing (e.g. it hit
+  # the 6h job limit or was canceled before uploading), since the merged report
+  # would otherwise silently lack that shard's tests.
+  merge_reports:
+    name: Merge Playwright Reports
+    needs: [set_matrix, regression_test]
+    if: always() && needs.set_matrix.result == 'success'
+    runs-on: ubuntu-latest
+    env:
+      SHARD_TOTAL: 2 # keep in sync with regression_test's matrix.shard list
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download blob reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: blob-report-*
+          path: all-blob-reports
+          merge-multiple: true
+
+      - name: Check all shards reported
+        id: check
+        run: |
+          mkdir -p all-blob-reports
+          browsers=$(echo '${{ needs.set_matrix.outputs.matrix }}' | jq length)
+          expected=$((browsers * SHARD_TOTAL))
+          found=$(find all-blob-reports -name '*.zip' | wc -l)
+          echo "found=$found" >> "$GITHUB_OUTPUT"
+          if [ "$found" -lt "$expected" ]; then
+            echo "::warning::Only $found of $expected shard blob reports found - the merged report is missing tests."
+            echo "> ⚠️ **Merged report is incomplete:** only $found of $expected shards uploaded a blob report. Check the shard jobs and their own reports." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Merge into HTML report
+        if: steps.check.outputs.found != '0'
+        run: npx playwright merge-reports --reporter html ./all-blob-reports
+
+      - name: Upload merged HTML report
+        if: steps.check.outputs.found != '0'
+        id: upload_merged
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-merged
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Add merged report link to summary
+        if: steps.check.outputs.found != '0'
+        run: |
+          {
+            echo "### 📊 Merged report (all shards)"
+            echo "- [Playwright HTML report](${{ steps.upload_merged.outputs.artifact-url }}) - unzip, then run: npx playwright show-report <folder>"
+          } >> "$GITHUB_STEP_SUMMARY"

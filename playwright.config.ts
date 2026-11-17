@@ -1,4 +1,4 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices, type ReporterDescription } from '@playwright/test';
 
 import * as settings from './config/settings';
 
@@ -19,8 +19,20 @@ export default defineConfig({
   // directly in the run log/checks UI. 'json' feeds scripts/write-failure-summary.js,
   // which turns that into a markdown table in the job's Summary page - both let you see
   // what failed and why without downloading the (often huge) html report/trace artifacts.
+  // 'blob' is only added when BLOB_REPORT_NAME is set (the sharded weekly regression
+  // workflow sets it per shard); its merge_reports job combines the shards' blob files
+  // into one HTML report. The name keeps blob files from different browsers/shards
+  // from overwriting each other when they're downloaded into one folder.
   reporter: process.env.CI
-    ? [['list'], ['html', { open: 'never' }], ['github'], ['json', { outputFile: 'test-results/results.json' }]]
+    ? [
+        ['list'],
+        ['html', { open: 'never' }],
+        ['github'],
+        ['json', { outputFile: 'test-results/results.json' }],
+        ...(process.env.BLOB_REPORT_NAME
+          ? [['blob', { fileName: `report-${process.env.BLOB_REPORT_NAME}.zip` }] as ReporterDescription]
+          : []),
+      ]
     : [['list'], ['html', { open: 'never' }]],
   // Must stay comfortably above the largest individual wait below (navigationTimeout,
   // LONG_TIMEOUT_MS) - otherwise a single slow-but-legitimate navigation/assertion can
