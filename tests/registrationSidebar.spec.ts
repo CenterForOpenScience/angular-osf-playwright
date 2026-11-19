@@ -195,17 +195,13 @@ test.describe('Registration Overview', { tag: '@core' }, () => {
     const uiRegistrationDoi = (await regPage.registrationDoi.innerText()).trim();
 
     expect(uiDescription).toBe(apiDescription);
-    if (settings.DOMAIN !== 'stage3') {
-      expect(normalizeUiDate(uiCreatedDate)).toBe(normalizeApiDate(apiCreatedDate));
-      expect(normalizeUiDate(uiRegisteredDate)).toBe(normalizeApiDate(apiRegisteredDate));
-    }
+    expect(normalizeUiDate(uiCreatedDate)).toBe(normalizeApiDate(apiCreatedDate));
+    expect(normalizeUiDate(uiRegisteredDate)).toBe(normalizeApiDate(apiRegisteredDate));
 
-    if (settings.DOMAIN !== 'stage1') {
-      const uiRegistry = (await regPage.overviewRegistry.innerText()).trim();
-      expect(uiRegistry).toBe(apiProvider);
-      const uiAffiliatedInstitutionList = await regPage.getAffiliationsList();
-      expect([...uiAffiliatedInstitutionList].sort()).toEqual([...apiInstitutionList].sort());
-    }
+    const uiRegistry = (await regPage.overviewRegistry.innerText()).trim();
+    expect(uiRegistry).toBe(apiProvider);
+    const uiAffiliatedInstitutionList = await regPage.getAffiliationsList();
+    expect([...uiAffiliatedInstitutionList].sort()).toEqual([...apiInstitutionList].sort());
 
     expect([...uiTagsList].sort()).toEqual([...apiTagsList].sort());
     expect(uiRegistrationType).toBe(apiRegistrationType);

@@ -14,10 +14,6 @@ on:
           - test3
           - test4
           - uat1
-          - stage1
-          - stage2
-          - stage3
-          - stage4
           - prod
       test_file:
         description: 'Test File'
@@ -84,10 +80,6 @@ env:
   POPULAR_PAGES: ${{ secrets.POPULAR_PAGES }}
   PROFILE_USER: ${{ secrets.PROFILE_USER }}
   PROFILE_USER_PASSWORD: ${{ secrets.PROFILE_USER_PASSWORD }}
-  USER_ONE_STAGE1_PAT: ${{ secrets.USER_ONE_STAGE1_PAT }}
-  USER_ONE_STAGE2_PAT: ${{ secrets.USER_ONE_STAGE2_PAT }}
-  USER_ONE_STAGE3_PAT: ${{ secrets.USER_ONE_STAGE3_PAT }}
-  USER_ONE_STAGE4_PAT: ${{ secrets.USER_ONE_STAGE4_PAT }}
   USER_ONE_TEST_PAT: ${{ secrets.USER_ONE_TEST_PAT }}
   USER_ONE_TEST2_PAT: ${{ secrets.USER_ONE_TEST2_PAT }}
   USER_ONE_TEST3_PAT: ${{ secrets.USER_ONE_TEST3_PAT }}

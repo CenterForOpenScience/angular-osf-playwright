@@ -1,9 +1,17 @@
 name: New Weekly Regression Tests
 
 on:
-  # schedule:
-  #   # 5am UTC = 12am EST (Saturday)
-  #   - cron: '0 5 * * 6'
+  # Runs on UAT1 every Wednesday at 2:00 AM US Eastern time. GitHub's cron is UTC-only,
+  # so both possible UTC times are scheduled and set_variables' DST guard lets only the
+  # one matching the current New York offset through:
+  #   - 2am EDT (UTC-4, mid-March to early November) = 06:00 UTC
+  #   - 2am EST (UTC-5, early November to mid-March) = 07:00 UTC
+  # The other trigger finishes in seconds with every test job skipped. DST switches
+  # happen on Sundays, so a delayed Wednesday trigger can't land on the wrong side of
+  # one. Schedules only run from the default branch, and GitHub may start them late.
+  schedule:
+    - cron: '0 6 * * 3'
+    - cron: '0 7 * * 3'
 
   # Allows you to run this workflow manually from the Actions tab and change the
   # testing environment, OSF service, and browser.
@@ -20,10 +28,6 @@ on:
           - test3
           - test4
           - uat1
-          - stage1
-          - stage2
-          - stage3
-          - stage4
           - prod
       service:
         description: 'OSF Service'
@@ -60,10 +64,19 @@ on:
           - firefox
           - edge
           - webkit
+      send_email:
+        description: 'Email the results to REPORT_RECIPIENTS (scheduled runs always do)'
+        required: false
+        default: false
+        type: boolean
 
 env:
   HEADLESS: 'true'
   DEFAULT_TEST_ENV: test
+  # Scheduled runs always target UAT1; manual runs use the test_env input.
+  SCHEDULED_TEST_ENV: uat1
+  # Comma-separated recipients of the results email sent after each scheduled run.
+  REPORT_RECIPIENTS: otsegelnyk@exoft.net
   DEFAULT_SERVICE: All
   DEFAULT_BROWSER: All
   NEW_USER_EMAIL: ${{ secrets.NEW_USER_EMAIL }}
@@ -90,10 +103,6 @@ env:
   POPULAR_PAGES: ${{ secrets.POPULAR_PAGES }}
   PROFILE_USER: ${{ secrets.PROFILE_USER }}
   PROFILE_USER_PASSWORD: ${{ secrets.PROFILE_USER_PASSWORD }}
-  USER_ONE_STAGE1_PAT: ${{ secrets.USER_ONE_STAGE1_PAT }}
-  USER_ONE_STAGE2_PAT: ${{ secrets.USER_ONE_STAGE2_PAT }}
-  USER_ONE_STAGE3_PAT: ${{ secrets.USER_ONE_STAGE3_PAT }}
-  USER_ONE_STAGE4_PAT: ${{ secrets.USER_ONE_STAGE4_PAT }}
   USER_ONE_TEST_PAT: ${{ secrets.USER_ONE_TEST_PAT }}
   USER_ONE_TEST2_PAT: ${{ secrets.USER_ONE_TEST2_PAT }}
   USER_ONE_TEST3_PAT: ${{ secrets.USER_ONE_TEST3_PAT }}
@@ -114,20 +123,44 @@ env:
   READ_USER_PASSWORD: ${{ secrets.READ_USER_PASSWORD }}
   RL_BYPASS_TOKEN: ${{ secrets.RL_BYPASS_TOKEN }}
   SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
 
 jobs:
   # Need to set the test_env, service, and browser values in this job first so
   # that when the workflow is run from the scheduler the correct default values
-  # will be used, since the scheduler does not have inputs.
+  # will be used, since the scheduler does not have inputs. Also decides whether
+  # this run should happen at all (DST guard, see `on.schedule`) and whether it
+  # emails its results.
   set_variables:
     name: Set the Test Env, Service, and Browser for Regression Tests
     runs-on: ubuntu-latest
     outputs:
-      test_env: ${{ github.event.inputs.test_env || env.DEFAULT_TEST_ENV }}
+      test_env: ${{ github.event_name == 'schedule' && env.SCHEDULED_TEST_ENV || github.event.inputs.test_env || env.DEFAULT_TEST_ENV }}
       service: ${{ github.event.inputs.service || env.DEFAULT_SERVICE }}
       browser: ${{ github.event.inputs.browser || env.DEFAULT_BROWSER }}
+      should_run: ${{ steps.dst_guard.outputs.should_run }}
+      send_email: ${{ steps.dst_guard.outputs.should_run == 'true' && (github.event_name == 'schedule' || github.event.inputs.send_email == 'true') }}
     steps:
-      - run: echo "Set Test Env, Service, and Browser Values"
+      - name: Check the schedule trigger matches US Eastern time (DST guard)
+        id: dst_guard
+        env:
+          TRIGGER_CRON: ${{ github.event.schedule }}
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # -0400 while New York is on EDT, -0500 while on EST.
+          offset=$(TZ=America/New_York date +%z)
+          case "$offset|$TRIGGER_CRON" in
+            "-0400|0 6 * * 3" | "-0500|0 7 * * 3") should_run=true ;;
+            *) should_run=false ;;
+          esac
+          echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
+          echo "New York UTC offset: $offset, trigger: '$TRIGGER_CRON', should_run: $should_run"
+          if [ "$should_run" = "false" ]; then
+            echo "Skipped: the '$TRIGGER_CRON' (UTC) trigger isn't 2am in New York at UTC offset $offset; the other weekly trigger runs the tests." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   # This job sets the browser(s) that will be used in the regression_test job below.
   # When run from the scheduler all the available browsers will be used, and when
@@ -135,6 +168,7 @@ jobs:
   set_matrix:
     name: Set Matrix of Browser Values
     needs: [set_variables]
+    if: needs.set_variables.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set_matrix.outputs.matrix }}
@@ -283,6 +317,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SHARD_TOTAL: 2 # keep in sync with regression_test's matrix.shard list
+    outputs:
+      expected: ${{ steps.check.outputs.expected }}
+      found: ${{ steps.check.outputs.found }}
     steps:
       - name: Git checkout
         uses: actions/checkout@v4
@@ -311,14 +348,24 @@ jobs:
           expected=$((browsers * SHARD_TOTAL))
           found=$(find all-blob-reports -name '*.zip' | wc -l)
           echo "found=$found" >> "$GITHUB_OUTPUT"
+          echo "expected=$expected" >> "$GITHUB_OUTPUT"
           if [ "$found" -lt "$expected" ]; then
             echo "::warning::Only $found of $expected shard blob reports found - the merged report is missing tests."
             echo "> ⚠️ **Merged report is incomplete:** only $found of $expected shards uploaded a blob report. Check the shard jobs and their own reports." >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: Merge into HTML report
+      # merge.config.ts writes both the HTML report and merged-results/results.json.
+      - name: Merge into HTML and JSON reports
         if: steps.check.outputs.found != '0'
-        run: npx playwright merge-reports --reporter html ./all-blob-reports
+        run: npx playwright merge-reports --config merge.config.ts ./all-blob-reports
+
+      - name: Upload merged JSON results
+        if: steps.check.outputs.found != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: merged-results
+          path: merged-results/
+          retention-days: 7
 
       - name: Upload merged HTML report
         if: steps.check.outputs.found != '0'
@@ -336,3 +383,58 @@ jobs:
             echo "### 📊 Merged report (all shards)"
             echo "- [Playwright HTML report](${{ steps.upload_merged.outputs.artifact-url }}) - unzip, then run: npx playwright show-report <folder>"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # Emails the results after every scheduled run (and manual runs with send_email
+  # checked), whatever the outcome - including when every shard failed and there
+  # is no merged report. Needs these repository secrets: SMTP_SERVER, SMTP_PORT,
+  # SMTP_USERNAME, SMTP_PASSWORD, and optionally SMTP_FROM (defaults to SMTP_USERNAME).
+  email_results:
+    name: Email Test Results
+    needs: [set_variables, set_matrix, regression_test, merge_reports]
+    if: always() && needs.set_variables.outputs.send_email == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Download merged JSON results
+        continue-on-error: true # missing when no shard uploaded a blob report
+        uses: actions/download-artifact@v4
+        with:
+          name: merged-results
+          path: merged-results
+
+      - name: Build email
+        id: email
+        env:
+          TEST_ENV: ${{ needs.set_variables.outputs.test_env }}
+          SERVICE: ${{ needs.set_variables.outputs.service }}
+          BROWSERS: ${{ join(fromJson(needs.set_matrix.outputs.matrix || '[]'), ', ') }}
+          REGRESSION_RESULT: ${{ needs.regression_test.result }}
+          EXPECTED_SHARDS: ${{ needs.merge_reports.outputs.expected }}
+          FOUND_SHARDS: ${{ needs.merge_reports.outputs.found }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/write-email-summary.js merged-results/results.json > email-body.html
+
+      - name: Send email
+        if: env.SMTP_SERVER != ''
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          secure: ${{ secrets.SMTP_PORT == '465' }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          from: OSF Playwright Tests <${{ secrets.SMTP_FROM || secrets.SMTP_USERNAME }}>
+          to: ${{ env.REPORT_RECIPIENTS }}
+          subject: ${{ steps.email.outputs.subject }}
+          html_body: file://email-body.html
+
+      - name: Warn when email isn't configured
+        if: env.SMTP_SERVER == ''
+        run: echo "::warning::SMTP_SERVER secret is not set - the results email was not sent."

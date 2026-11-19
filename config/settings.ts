@@ -28,7 +28,7 @@ function envList(name: string, fallback: string[] = []): string[] {
   return value.split(',').map((item) => item.trim());
 }
 
-const rawEnvName = env('TEST_ENV', env('DOMAIN', 'stage3'));
+const rawEnvName = env('TEST_ENV', env('DOMAIN', 'test'));
 if (!isEnvironmentName(rawEnvName)) {
   throw new Error(
     `Unknown TEST_ENV "${rawEnvName}". Expected one of: ${Object.keys(environments).join(', ')}`
@@ -105,10 +105,6 @@ export const USER_TWO = env('USER_TWO');
 export const USER_TWO_PASSWORD = env('USER_TWO_PASSWORD');
 
 // Used to skip certain tests on specific environments (mirrors settings.py flags).
-export const STAGE1 = DOMAIN === 'stage1';
-export const STAGE2 = DOMAIN === 'stage2';
-export const STAGE3 = DOMAIN === 'stage3';
-export const STAGE4 = DOMAIN === 'stage4';
 export const TEST = DOMAIN === 'test';
 export const TEST1 = DOMAIN === 'test1';
 export const TEST2 = DOMAIN === 'test2';

@@ -195,7 +195,7 @@ test.describe('Preprint Workflow', () => {
   test('create preprint from landing', async ({ page, landingPage }) => {
     // Python also picked 'Selenium Pre-moderation' on test1, an environment this
     // project doesn't define.
-    const providerName = settings.STAGE4 || settings.TEST4 ? 'PsyArXiv' : 'AfricArXiv';
+    const providerName = settings.TEST4 ? 'PsyArXiv' : 'AfricArXiv';
 
     await landingPage.addPreprintButton.click();
     const selectProviderPage = await PreprintProviderSelectPage.expectOn(page);
@@ -672,10 +672,6 @@ test.describe('Preprint Search', { tag: '@core' }, () => {
     // Python searched for the environment's host here, because all test environments
     // share one SHARE server. The app now filters every search by the environment
     // itself (`cardSearchFilter[accessService]`), and the host text matches nothing.
-    if (settings.STAGE2) {
-      // Stage 2 lists old preprints that no longer have detail pages - newest first.
-      await discoverPage.applySort(discoverPage.sortByDateCreatedNewest, '-dateCreated');
-    }
     await expect(discoverPage.searchResults.first()).toBeVisible();
     const detailTab = await clickExpectingPopup(page, discoverPage.firstSearchResultTitle);
     await PreprintPage.expectOn(detailTab);

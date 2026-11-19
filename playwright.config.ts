@@ -3,7 +3,7 @@ import { defineConfig, devices, type ReporterDescription } from '@playwright/tes
 import * as settings from './config/settings';
 
 /**
- * Environment (stage1/stage2/stage3/stage4/test/test2/test3/test4/uat1/prod) is selected via the
+ * Environment (test/test2/test3/test4/uat1/prod) is selected via the
  * TEST_ENV env var and resolved in config/settings.ts. Browser is selected via the
  * `--project` CLI flag (chromium | firefox | edge | webkit), e.g.:
  *
