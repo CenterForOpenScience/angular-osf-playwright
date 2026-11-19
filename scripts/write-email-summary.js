@@ -3,6 +3,7 @@
 // Playwright JSON report (see merge.config.ts), and writes the email subject to
 // $GITHUB_OUTPUT as `subject` when that variable is set.
 //
+
 // Usage: node scripts/write-email-summary.js <merged-results.json> > body.html
 // Env: TEST_ENV, SERVICE, BROWSERS, RUN_URL, REGRESSION_RESULT (the regression_test
 // job's result), EXPECTED_SHARDS / FOUND_SHARDS (optional, from merge_reports).
