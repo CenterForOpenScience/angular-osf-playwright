@@ -95,7 +95,7 @@ export class CollectionSearchPage extends CollectionDiscoverPage {
   constructor(page: Page) {
     super(
       page,
-      settings.TEST4 || settings.STAGE4 || settings.PRODUCTION || settings.TEST ? 'ibdgc' : 'iafns'
+      settings.TEST4 || settings.PRODUCTION || settings.TEST ? 'ibdgc' : 'iafns'
     );
   }
 

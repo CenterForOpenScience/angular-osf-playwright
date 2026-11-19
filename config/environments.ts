@@ -1,8 +1,4 @@
 export type EnvironmentName =
-  | 'stage1'
-  | 'stage2'
-  | 'stage3'
-  | 'stage4'
   | 'test'
   | 'test1'
   | 'test2'
@@ -21,44 +17,9 @@ export interface EnvironmentConfig {
   addonTokenEnvVar: string;
 }
 
-// Mirrors the `domains` dict in the old settings.py, one to one.
+// Mirrors the `domains` dict in the old settings.py, minus the staging (stage1-4)
+// environments, which this suite doesn't support.
 export const environments: Record<EnvironmentName, EnvironmentConfig> = {
-  stage1: {
-    home: 'https://staging.osf.io',
-    api: 'https://api.staging.osf.io',
-    files: 'https://files.us.staging.osf.io',
-    cas: 'https://accounts.staging.osf.io',
-    customInstitutionDomains: ['https://staging-osf-nd.cos.io'],
-    addons: 'https://addons.staging.osf.io',
-    addonTokenEnvVar: 'USER_ONE_STAGE1_PAT',
-  },
-  stage2: {
-    home: 'https://staging2.osf.io',
-    api: 'https://api.staging2.osf.io',
-    files: 'https://files.us.staging2.osf.io',
-    cas: 'https://accounts.staging2.osf.io',
-    customInstitutionDomains: [],
-    addons: 'https://addons.staging2.osf.io',
-    addonTokenEnvVar: 'USER_ONE_STAGE2_PAT',
-  },
-  stage3: {
-    home: 'https://staging3.osf.io',
-    api: 'https://api.staging3.osf.io',
-    files: 'https://files.us.staging3.osf.io',
-    cas: 'https://accounts.staging3.osf.io',
-    customInstitutionDomains: [],
-    addons: 'https://addons.staging3.osf.io',
-    addonTokenEnvVar: 'USER_ONE_STAGE3_PAT',
-  },
-  stage4: {
-    home: 'https://staging4.osf.io',
-    api: 'https://api.staging4.osf.io',
-    files: 'https://files.us.staging4.osf.io',
-    cas: 'https://accounts.staging4.osf.io',
-    customInstitutionDomains: [],
-    addons: 'https://addons.staging4.osf.io',
-    addonTokenEnvVar: 'USER_ONE_STAGE4_PAT',
-  },
   test: {
     home: 'https://test.osf.io',
     api: 'https://api.test.osf.io',

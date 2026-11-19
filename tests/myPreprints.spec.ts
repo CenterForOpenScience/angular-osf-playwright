@@ -139,7 +139,7 @@ test.describe('My Preprints Page', () => {
     })}`;
 
     const providerName =
-      settings.STAGE2 || settings.STAGE4 || settings.TEST2 || settings.TEST4
+      settings.TEST2 || settings.TEST4
         ? 'PsyArXiv'
         : 'AfricArXiv';
     // Used afterwards to find the preprint this test created (`date_created` is UTC).
