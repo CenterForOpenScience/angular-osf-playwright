@@ -76,6 +76,7 @@ const failed = stats.unexpected || 0;
 const flaky = stats.flaky || 0;
 const skipped = stats.skipped || 0;
 
+
 const failures = [];
 for (const suite of report?.suites || []) collectFailures(suite, [], failures);
 failures.sort((a, b) => (a.status === b.status ? 0 : a.status === 'unexpected' ? -1 : 1));
