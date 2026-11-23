@@ -27,7 +27,7 @@ import {
 
 
 
-const INSTITUTION_NAME = settings.TEST4 || settings.STAGE4 ? 'Exoft' : 'Center For Open Science';
+const INSTITUTION_NAME = settings.TEST4 ? 'Exoft' : 'Center For Open Science';
 
 const test = base.extend<{
   landingPage: InstitutionsLandingPage;
@@ -104,8 +104,8 @@ async function checkAdditionalFilterShownOnCard(
   await expect(linkOnCard).toBeVisible();
 }
 
-const skipOnTest4AndStage4 = (): void =>
-  test.skip(settings.TEST4 || settings.STAGE4, 'Test is not applicable for test4 and stage4 environments');
+const skipOnTest4 = (): void =>
+  test.skip(settings.TEST4, 'Test is not applicable for the test4 environment');
 
 // -------------------------------------------------------------------------------
 // TestInstitutionsPage (2 tests)
@@ -250,7 +250,7 @@ test.describe('Institution Page Search', { tag: ['@core'] }, () => {
     });
 
     test('filtering by part of collection on all tab', async ({ institutionPage }) => {
-      skipOnTest4AndStage4();
+      skipOnTest4();
       await institutionPage.checkFilteringByPartOfCollection();
     });
 
@@ -349,7 +349,7 @@ test.describe('Institution Page Search', { tag: ['@core'] }, () => {
     });
 
     test('search in filtering by part of collection on all tab', async ({ institutionPage }) => {
-      skipOnTest4AndStage4();
+      skipOnTest4();
       await checkSearchInFilteringOptionsFor(
         institutionPage,
         institutionPage.partOfCollectionMenu,
@@ -431,7 +431,7 @@ test.describe('Institution Page Search', { tag: ['@core'] }, () => {
     });
 
     test('filtering by data on preprints tab', async ({ institutionPage }) => {
-      skipOnTest4AndStage4();
+      skipOnTest4();
       await institutionPage.openTab(institutionPage.preprintsTabLink);
       await institutionPage.checkFilteringByData(
         'section:has(h3:text-is("Public Data")) p:has-text("http")'
@@ -442,7 +442,7 @@ test.describe('Institution Page Search', { tag: ['@core'] }, () => {
       page,
       institutionPage,
     }) => {
-      skipOnTest4AndStage4();
+      skipOnTest4();
       await institutionPage.openTab(institutionPage.preprintsTabLink);
       await checkAdditionalFilterShownOnCard(
         page,
@@ -457,7 +457,7 @@ test.describe('Institution Page Search', { tag: ['@core'] }, () => {
       page,
       institutionPage,
     }) => {
-      skipOnTest4AndStage4();
+      skipOnTest4();
       await institutionPage.openTab(institutionPage.preprintsTabLink);
       await checkAdditionalFilterShownOnCard(
         page,
@@ -915,7 +915,7 @@ test.describe('Institution Page Search', { tag: ['@core'] }, () => {
     });
 
     test('filtering by part of collection on projects tab', async ({ institutionPage }) => {
-      skipOnTest4AndStage4();
+      skipOnTest4();
       await institutionPage.openTab(institutionPage.projectsTabLink);
       await institutionPage.checkFilteringByPartOfCollection();
     });
@@ -1030,7 +1030,7 @@ test.describe('Institution Page Search', { tag: ['@core'] }, () => {
     test('search in filtering by part of collection on projects tab', async ({
       institutionPage,
     }) => {
-      skipOnTest4AndStage4();
+      skipOnTest4();
       await institutionPage.openTab(institutionPage.projectsTabLink);
       await checkSearchInFilteringOptionsFor(
         institutionPage,

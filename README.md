@@ -33,14 +33,10 @@ via Playwright's `--project` flag.
 
 ```bash
 # Environment shortcuts
-npm run test:test        # TEST_ENV=test
+npm run test:test        # TEST_ENV=test (default when TEST_ENV is unset)
 npm run test:test2       # TEST_ENV=test2
 npm run test:test3       # TEST_ENV=test3
 npm run test:test4       # TEST_ENV=test4
-npm run test:stage1      # TEST_ENV=stage1 (staging.osf.io)
-npm run test:stage2
-npm run test:stage3      # default when TEST_ENV is unset
-npm run test:stage4
 npm run test:uat1        # TEST_ENV=uat1 (uat1.osf.io)
 npm run test:prod
 
@@ -83,7 +79,7 @@ against `TEST_ENV=prod`.
 
 ```
 config/
-  environments.ts   # domain map (stage1-4, test, test2, test3, test4, uat1, prod) - port of the `domains` dict in settings.py
+  environments.ts   # domain map (test, test2, test3, test4, uat1, prod) - port of the `domains` dict in settings.py
   settings.ts        # env-var driven settings - port of settings.py
 src/
   api/
@@ -306,7 +302,7 @@ Progress: **17 / 18** sections migrated.
     `img[data-test-institution-banner]`) are Ember-era and gone - replaced with the
     `osf-institutions-list` / `osf-institutions-search` components (verified live).
   - `select_institution()` (type the name, click the card) is kept as the
-    `institutionPage` fixture, including the `Exoft` substitution on test4/stage4.
+    `institutionPage` fixture, including the `Exoft` substitution on test4.
     `InstitutionsLandingPage.searchFor()` retries the fill until the list actually
     filters: a fill that lands before the list component is ready is silently
     ignored, and clicking "the first card" then opens the wrong institution (seen
