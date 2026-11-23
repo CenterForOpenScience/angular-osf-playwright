@@ -76,7 +76,7 @@ env:
   # Scheduled runs always target UAT1; manual runs use the test_env input.
   SCHEDULED_TEST_ENV: uat1
   # Comma-separated recipients of the results email sent after each scheduled run.
-  REPORT_RECIPIENTS: otsegelnyk@exoft.net
+  REPORT_RECIPIENTS: otsegelnyk@exoft.net, osmand@cos.io, bgeiger@cos.io, matt@cos.io, ykopka@exoft.net
   DEFAULT_SERVICE: All
   DEFAULT_BROWSER: All
   NEW_USER_EMAIL: ${{ secrets.NEW_USER_EMAIL }}
