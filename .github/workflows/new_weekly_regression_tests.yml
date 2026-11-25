@@ -78,7 +78,8 @@ env:
   # Comma-separated recipients of the results email sent after each scheduled run.
   REPORT_RECIPIENTS: otsegelnyk@exoft.net, osmand@cos.io, bgeiger@cos.io, matt@cos.io, ykopka@exoft.net
   DEFAULT_SERVICE: All
-  DEFAULT_BROWSER: All
+  # Scheduled runs only use Chromium; manual runs use the browser input (which can be All).
+  DEFAULT_BROWSER: chromium
   NEW_USER_EMAIL: ${{ secrets.NEW_USER_EMAIL }}
   USER_ONE: ${{ secrets.USER_ONE }}
   USER_ONE_PASSWORD: ${{ secrets.USER_ONE_PASSWORD }}
@@ -163,7 +164,7 @@ jobs:
           fi
 
   # This job sets the browser(s) that will be used in the regression_test job below.
-  # When run from the scheduler all the available browsers will be used, and when
+  # When run from the scheduler only Chromium is used (DEFAULT_BROWSER), and when
   # run manually from the Actions tab the user can select which browser to use.
   set_matrix:
     name: Set Matrix of Browser Values
